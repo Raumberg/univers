@@ -1,0 +1,142 @@
+Hello! Im building physics engine for my 2d solar system terminal visualization
+here is the physics.rs
+
+```
+use crate::objects::CelestialObject;
+use crate::system::SolarSystem;
+
+const G: f64 = 6.67430e-11; // gravitational constant in m^3 kg^-1 s^-2
+
+fn calculate_gravitational_force(body1: &CelestialObject, body2: &CelestialObject) -> (f64, f64) {
+    let distance_squared = (body2.position.0 - body1.position.0).powi(2) + (body2.position.1 - body1.position.1).powi(2);
+    let force_magnitude = G * body1.mass * body2.mass / distance_squared;
+    let force_x = force_magnitude * (body2.position.0 - body1.position.0) / distance_squared.sqrt();
+    let force_y = force_magnitude * (body2.position.1 - body1.position.1) / distance_squared.sqrt();
+    (force_x, force_y)
+}
+
+fn update_body(body: &mut CelestialObject, bodies: &[CelestialObject], dt: f64) {
+    let mut force_x = 0.0;
+    let mut force_y = 0.0;
+    for other_body in bodies {
+        if body != other_body {
+            let (fx, fy) = calculate_gravitational_force(body, other_body);
+            force_x += fx;
+            force_y += fy;
+        }
+    }
+    let acceleration_x = force_x / body.mass;
+    let acceleration_y = force_y / body.mass;
+    body.velocity.0 += acceleration_x * dt;
+    body.velocity.1 += acceleration_y * dt;
+    body.position.0 += body.velocity.0 * dt;
+    body.position.1 += body.velocity.1 * dt;
+}
+
+pub fn simulate(bodies: &mut [CelestialObject], dt: f64, num_steps: usize) {
+    for _ in 0..num_steps {
+        for body in bodies.iter_mut() {
+            update_body(body, bodies, dt);
+        }
+    }
+}
+
+pub trait Physics {
+    fn simulate(&mut self, dt: f64);
+}
+
+pub struct Engine {
+    pub solar_system: SolarSystem,
+}
+
+// Verlet Integration method for more accurate numerical integration
+impl Physics for Engine {
+    fn simulate(&mut self, dt: f64) {
+        simulate(&mut self.solar_system.bodies, dt, 1); // assuming num_steps = 1
+    }
+}
+```
+here is my system.rs
+
+
+```
+use crate::objects::CelestialObject;
+
+// Define the solar system
+pub struct SolarSystem {
+    pub bodies: Vec<CelestialObject>,
+    pub g: f64, // gravitational constant in m^3 kg^-1 s^-2
+}
+
+impl SolarSystem {
+    // Constructor to create a new solar system
+    pub fn new() -> Self {
+        let sun = CelestialObject::new("Sun".to_string(), 1.989e30, (0.0, 0.0), (0.0, 0.0));
+        let mercury = CelestialObject::new("Mercury".to_string(), 3.302e23, (57.909e9, 0.0), (0.0, 47.36e3));
+        let venus = CelestialObject::new("Venus".to_string(), 4.869e24, (108.208e9, 0.0), (0.0, 35.02e3));
+        let earth = CelestialObject::new("Earth".to_string(), 5.972e24, (149.596e9, 0.0), (0.0, 29.78e3));
+        let moon = CelestialObject::new("Moon".to_string(), 7.349e22, (384.4e6, 0.0), (0.0, 1.022e3));
+        let mars = CelestialObject::new("Mars".to_string(), 6.419e23, (227.939e9, 0.0), (0.0, 24.07e3));
+        let jupiter = CelestialObject::new("Jupiter".to_string(), 1.898e27, (778.299e9, 0.0), (0.0, 13.07e3));
+        let io = CelestialObject::new("Io".to_string(), 8.931e22, (426.0e6, 0.0), (0.0, 17.34e3));
+        let europa = CelestialObject::new("Europa".to_string(), 4.879e22, (670.9e6, 0.0), (0.0, 13.86e3));
+        let ganymede = CelestialObject::new("Ganymede".to_string(), 3.275e23, (1070.4e6, 0.0), (0.0, 10.87e3));
+        let callisto = CelestialObject::new("Callisto".to_string(), 1.075e23, (1882.7e6, 0.0), (0.0, 8.22e3));
+
+        let g = 6.67430e-11; 
+
+        SolarSystem {
+            bodies: vec![
+                sun,
+                mercury,
+                venus,
+                earth,
+                moon,
+                mars,
+                jupiter,
+                io,
+                europa,
+                ganymede,
+                callisto,
+            ],
+            g
+        }
+    }
+
+    pub fn simulate(&mut self, dt: f64, num_steps: usize) {
+        crate::physics::simulate(&mut self.bodies, dt, num_steps);
+    }
+
+    pub fn run(&mut self, dt: f64) {
+        self.simulate(dt, 100);
+    }
+}
+```
+here are my objects.rs
+
+```
+#[derive(Clone)]
+pub struct CelestialObject {
+    pub name: String,
+    pub mass: f64,
+    pub position: (f64, f64), // x, y coordinates
+    pub velocity: (f64, f64), // x, y components
+}
+
+impl CelestialObject {
+    pub fn new(name: String, mass: f64, position: (f64, f64), velocity: (f64, f64)) -> Self {
+        CelestialObject {
+            name,
+            mass,
+            position,
+            velocity,
+        }
+    }
+}
+
+impl PartialEq for CelestialObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.mass == other.mass && self.position == other.position && self.velocity == other.velocity
+    }
+}
+```
