@@ -1,67 +1,37 @@
 mod objects;
-mod system;
 mod physics;
-mod terminal;
+mod system;
 
-use crate::system::SolarSystem;
-use crate::terminal::TerminalInterface;
+use crate::system::{SolarSystem, Simulatable};
+use serde_json;
 
-use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use std::time::Duration;
-use lazy_static::lazy_static;
-use std::io;
-
-
-fn main() -> Result<(), io::Error> {
-
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-
+fn main() {
     let mut solar_system = SolarSystem::new();
-    let mut terminal_interface = TerminalInterface::new()?;
-    let mut paused = false;
-    let mut speed = 1.0;
+    let mut json_data = Vec::new();
 
-    loop {
-
-        clear_screen();
-
-        for body in &solar_system.bodies {
-            print!("{} {}", body.position.0, body.position.1);
-        }
-
-        if !paused {
-            solar_system.run(speed);
-        }
-
-        terminal_interface.draw(&solar_system)?;
-
-        if let Event::Key(key) = crossterm::event::read()? {
-            match key.code {
-                KeyCode::Char(' ') => paused = !paused,
-                KeyCode::Char('+') => speed += 0.1,
-                KeyCode::Char('-') => speed -= 0.1,
-                KeyCode::Char('q') => break,
-                KeyCode::Char('r') => {
-                    solar_system = SolarSystem::new();
-                    paused = false;
-                }
-                _ => {}
-            }
-        }
-        std::thread::sleep(Duration::from_millis(16)); // 60 FPS
+    for _ in 0..100 {
+        solar_system.simulate(1.0, 100);
+        let bodies_data: Vec<_> = solar_system.bodies.iter().map(|body| {
+            println!("Planet: {}", body.name);
+            serde_json::json!({
+                "name": body.name.clone(),
+                "position": {
+                    "x": body.position.x,
+                    "y": body.position.y,
+                },
+                "velocity": {
+                    "x": body.velocity.x,
+                    "y": body.velocity.y,
+                },
+                "acceleration": {
+                    "x": body.acceleration.x,
+                    "y": body.acceleration.y,
+                },
+            })
+        }).collect();
+        json_data.push(serde_json::json!(bodies_data));
     }
 
-    disable_raw_mode()?;
-    execute!(stdout, LeaveAlternateScreen, DisableMouseCapture)?;
-    Ok(())
-}
-
-fn clear_screen() {
-    print!("\x1B[2J\x1B[1;1H");
+    let json_output = serde_json::to_string_pretty(&json_data).unwrap();
+    std::fs::write("output.json", json_output).unwrap();
 }

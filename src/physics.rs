@@ -1,68 +1,162 @@
-use crate::objects::{CelestialObject, G, Force, Acceleration};
-use crate::vectors::Vec2D;
+use crate::objects::{Acceleration, CelestialObject, Force, Velocity};
 
-fn calculate_forces(bodies: &Vec<CelestialObject>) -> Vec<Force> {
-    let mut forces = vec![(0.,0.); bodies.len()];
-    for i in 0..bodies.len() - 1 {
-        for j in i + 1..bodies.len() {
-            let f = bodies[i].get_force(&bodies[j]);
-            forces[i].0 += f.0;
-            forces[i].1 += f.1;
-            forces[j].0 += -f.0;
-            forces[j].1 += -f.1;
+use nalgebra::{Point2, Vector2};
+
+struct QuadTree {
+    bounds: Rectangle,
+    capacity: usize,
+    bodies: Vec<CelestialObject>,
+    northwest: Option<Box<QuadTree>>,
+    northeast: Option<Box<QuadTree>>,
+    southwest: Option<Box<QuadTree>>,
+    southeast: Option<Box<QuadTree>>,
+}
+
+impl QuadTree {
+    fn new(bounds: Rectangle, capacity: usize) -> Self {
+        QuadTree {
+            bounds,
+            capacity,
+            bodies: Vec::new(),
+            northwest: None,
+            northeast: None,
+            southwest: None,
+            southeast: None,
         }
     }
-    forces
-}
 
-fn calculate_accels(bodies: &Vec<CelestialObject>, forces: Vec<Force>) -> Vec<Acceleration> {
-    let mut accels = vec![(0.,0.); bodies.len()];
-    for i in 0..bodies.len() {
-        let ax = forces[i].0 / bodies[i].mass;
-        let ay = forces[i].1 / bodies[i].mass;
-        accels[i] = (ax, ay);
-    }
-    accels
-}
-
-fn calculate_gravitational_force(body1: &CelestialObject, body2: &CelestialObject) -> (f64, f64) {
-    // Calculate the distance squared between the two bodies
-    let distance = body1.position - body2.position;
-
-    // Calculate the force magnitude
-    let force_magnitude = G * body1.mass * body2.mass / distance.norm();
-
-    // Calculate the force components
-    let force_direction = distance / distance.norm();
-
-    force_direction * force_magnitude
-}
-
-fn update_body(body: &mut CelestialObject, bodies: &[CelestialObject], dt: f64) {
-    // Initialize the force components to 0
-    let mut force = Vec2D::zeros();
-
-    // Calculate the total force on the body
-    for other_body in bodies {
-        if body != other_body {
-            force += calculate_gravitational_force(body, other_body);
+    fn insert(&mut self, body: CelestialObject) {
+        if self.bodies.len() < self.capacity {
+            self.bodies.push(body);
+        } else {
+            if self.northwest.is_none() {
+                self.subdivide();
+            }
+            let index = self.get_index(body.position);
+            match index {
+                0 => self.northwest.as_mut().unwrap().insert(body),
+                1 => self.northeast.as_mut().unwrap().insert(body),
+                2 => self.southwest.as_mut().unwrap().insert(body),
+                3 => self.southeast.as_mut().unwrap().insert(body),
+                _ => unreachable!(),
+            }
         }
     }
-    body.acceleration = force / body.mass;
-    body.velocity += body.acceleration * dt;
-    body.position += body.velocity * dt;
-}
 
-pub fn simulate(bodies: &mut [CelestialObject], dt: f64, num_steps: usize) {
-    // Check if num_steps is 0
-    if num_steps == 0 {
-        return;
+    fn subdivide(&mut self) {
+        let x = self.bounds.x;
+        let y = self.bounds.y;
+        let w = self.bounds.w / 2.0;
+        let h = self.bounds.h / 2.0;
+
+        self.northwest = Some(Box::new(QuadTree::new(Rectangle::new(x, y, w, h), self.capacity)));
+        self.northeast = Some(Box::new(QuadTree::new(Rectangle::new(x + w, y, w, h), self.capacity)));
+        self.southwest = Some(Box::new(QuadTree::new(Rectangle::new(x, y + h, w, h), self.capacity)));
+        self.southeast = Some(Box::new(QuadTree::new(Rectangle::new(x + w, y + h, w, h), self.capacity)));
     }
 
-    // Simulate the bodies
-    for _ in 0..num_steps {
-        for body in bodies.iter_mut() {
-            update_body(body, bodies, dt);
+    fn get_index(&self, point: Point2<f64>) -> usize {
+        let x = point.x;
+        let y = point.y;
+        let x_mid = self.bounds.x + self.bounds.w / 2.0;
+        let y_mid = self.bounds.y + self.bounds.h / 2.0;
+
+        if x <= x_mid && y <= y_mid {
+            0
+        } else if x > x_mid && y <= y_mid {
+            1
+        } else if x <= x_mid && y > y_mid {
+            2
+        } else {
+            3
+        }
+    }
+
+    fn calculate_force(&self, body: &CelestialObject, theta: f64) -> Force {
+        let distance = body.position - self.bounds.center();
+        let distance_squared = distance.norm_squared();
+
+        if distance_squared == 0.0 {
+            return Vector2::new(0.0, 0.0);
+        }
+
+        let mass = self.total_mass();
+        let force = (crate::objects::G * body.mass * mass) / distance_squared;
+        force * distance.normalize()
+    }
+
+    fn total_mass(&self) -> f64 {
+        self.bodies.iter().map(|body| body.mass).sum::<f64>()
+    }
+
+    fn traverse(&self, body: &CelestialObject, theta: f64) -> Force {
+
+        let distance = body.position - self.bounds.center();
+        let distance_squared = distance.norm_squared();
+    
+        if self.bodies.len() == 1 {
+            self.calculate_force(body, theta)
+        } else if distance_squared > (self.bounds.w * theta).powi(2) {
+            self.calculate_force(body, theta)
+        } else {
+            let mut force = Vector2::new(0.0, 0.0);
+            if let Some(northwest) = &self.northwest {
+                force += northwest.traverse(body, theta);
+            }
+            if let Some(northeast) = &self.northeast {
+                force += northeast.traverse(body, theta);
+            }
+            if let Some(southwest) = &self.southwest {
+                force += southwest.traverse(body, theta);
+            }
+            if let Some(southeast) = &self.southeast {
+                force += southeast.traverse(body, theta);
+            }
+            force
         }
     }
 }
+    
+    struct Rectangle {
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+    }
+    
+    impl Rectangle {
+        fn new(x: f64, y: f64, w: f64, h: f64) -> Self {
+            Rectangle { x, y, w, h }
+        }
+    
+        fn center(&self) -> Point2<f64> {
+            Point2::new(self.x + self.w / 2.0, self.y + self.h / 2.0)
+        }
+    }
+    
+    pub fn calculate_force(body: &CelestialObject, quad_tree: &QuadTree, theta: f64) -> Force {
+        quad_tree.traverse(body, theta)
+    }
+    
+    pub fn update_body(body: &mut CelestialObject, force: Force, dt: f64) {
+        body.acceleration = force / body.mass;
+        body.velocity += 0.5 * body.acceleration * dt; // Verlet integration 
+        body.position += body.velocity * dt;
+        body.prevposition = body.position - body.velocity * dt;
+    }
+    
+    pub fn simulate(bodies: &mut Vec<CelestialObject>, dt: f64, num_steps: usize, theta: f64) {
+        let mut quad_tree = QuadTree::new(Rectangle::new(-1.0, -1.0, 2.0, 2.0), 4);
+    
+        for _ in 0..num_steps {
+            quad_tree = QuadTree::new(Rectangle::new(-1.0, -1.0, 2.0, 2.0), 4);
+            for body in &*bodies {
+                quad_tree.insert(body.clone());
+            }
+    
+            for body in bodies.iter_mut() {
+                let force = calculate_force(body, &quad_tree, theta);
+                update_body(body, force, dt);
+            }
+        }
+    }

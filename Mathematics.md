@@ -90,3 +90,8 @@ Now, let's outline a simple simulation using these simplified GR equations:
     Calculate the gravitational potential: For each body, calculate the gravitational potential φ at each point in the 2D space using the Newtonian potential formula.
     Calculate the gravitational force: For each pair of bodies, calculate the gravitational force F between them using the Newtonian force formula.
     Update the positions and velocities: Update the positions and velocities of each body using the calculated forces and the equations of motion.
+
+
+### Barnes-Hut algorith for calculating forces between bodies.
+Reducing the computational complexity of calculating forces between all pairs of bodies from O(n^2) to O(n log n).
+theta - accuracy of the force calculations
