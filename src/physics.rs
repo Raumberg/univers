@@ -1,44 +1,56 @@
-// physics.rs
+use crate::objects::{CelestialObject, G, Force, Acceleration};
+use crate::vectors::Vec2D;
 
-const G: f64 = 6.67430e-11; // gravitational constant in m^3 kg^-1 s^-2
+fn calculate_forces(bodies: &Vec<CelestialObject>) -> Vec<Force> {
+    let mut forces = vec![(0.,0.); bodies.len()];
+    for i in 0..bodies.len() - 1 {
+        for j in i + 1..bodies.len() {
+            let f = bodies[i].get_force(&bodies[j]);
+            forces[i].0 += f.0;
+            forces[i].1 += f.1;
+            forces[j].0 += -f.0;
+            forces[j].1 += -f.1;
+        }
+    }
+    forces
+}
+
+fn calculate_accels(bodies: &Vec<CelestialObject>, forces: Vec<Force>) -> Vec<Acceleration> {
+    let mut accels = vec![(0.,0.); bodies.len()];
+    for i in 0..bodies.len() {
+        let ax = forces[i].0 / bodies[i].mass;
+        let ay = forces[i].1 / bodies[i].mass;
+        accels[i] = (ax, ay);
+    }
+    accels
+}
 
 fn calculate_gravitational_force(body1: &CelestialObject, body2: &CelestialObject) -> (f64, f64) {
     // Calculate the distance squared between the two bodies
-    let distance_squared = (body2.position.0 - body1.position.0).powi(2) + (body2.position.1 - body1.position.1).powi(2);
+    let distance = body1.position - body2.position;
 
     // Calculate the force magnitude
-    let force_magnitude = G * body1.mass * body2.mass / distance_squared;
+    let force_magnitude = G * body1.mass * body2.mass / distance.norm();
 
     // Calculate the force components
-    let force_x = force_magnitude * (body2.position.0 - body1.position.0) / distance_squared.sqrt();
-    let force_y = force_magnitude * (body2.position.1 - body1.position.1) / distance_squared.sqrt();
+    let force_direction = distance / distance.norm();
 
-    (force_x, force_y)
+    force_direction * force_magnitude
 }
 
 fn update_body(body: &mut CelestialObject, bodies: &[CelestialObject], dt: f64) {
     // Initialize the force components to 0
-    let mut force_x = 0.0;
-    let mut force_y = 0.0;
+    let mut force = Vec2D::zeros();
 
     // Calculate the total force on the body
     for other_body in bodies {
         if body != other_body {
-            let (fx, fy) = calculate_gravitational_force(body, other_body);
-            force_x += fx;
-            force_y += fy;
+            force += calculate_gravitational_force(body, other_body);
         }
     }
-
-    // Calculate the acceleration
-    let acceleration_x = force_x / body.mass;
-    let acceleration_y = force_y / body.mass;
-
-    // Update the velocity and position
-    body.velocity.0 += acceleration_x * dt;
-    body.velocity.1 += acceleration_y * dt;
-    body.position.0 += body.velocity.0 * dt;
-    body.position.1 += body.velocity.1 * dt;
+    body.acceleration = force / body.mass;
+    body.velocity += body.acceleration * dt;
+    body.position += body.velocity * dt;
 }
 
 pub fn simulate(bodies: &mut [CelestialObject], dt: f64, num_steps: usize) {

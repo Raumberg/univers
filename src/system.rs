@@ -1,4 +1,9 @@
 use crate::objects::CelestialObject;
+use crate::physics::update_body;
+
+pub struct Star;
+pub struct Planet;
+pub struct Moon;
 
 // Define the solar system
 pub struct SolarSystem {
@@ -42,7 +47,7 @@ impl SolarSystem {
     }
 
     pub fn simulate(&mut self, dt: f64, num_steps: usize) {
-        crate::physics::simulate(&mut self.bodies, dt, num_steps);
+        
     }
 
     pub fn run(&mut self, dt: f64) {
