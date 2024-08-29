@@ -1,19 +1,19 @@
-use crate::objects::{Acceleration, CelestialObject, Force, Velocity};
+use crate::space::objects::{Acceleration, CelestialObject, Force, Velocity};
 
 use nalgebra::{Point2, Vector2};
 
-struct QuadTree {
-    bounds: Rectangle,
-    capacity: usize,
-    bodies: Vec<CelestialObject>,
-    northwest: Option<Box<QuadTree>>,
-    northeast: Option<Box<QuadTree>>,
-    southwest: Option<Box<QuadTree>>,
-    southeast: Option<Box<QuadTree>>,
+pub struct QuadTree {
+    pub bounds: Rectangle,
+    pub capacity: usize,
+    pub bodies: Vec<CelestialObject>,
+    pub northwest: Option<Box<QuadTree>>,
+    pub northeast: Option<Box<QuadTree>>,
+    pub southwest: Option<Box<QuadTree>>,
+    pub southeast: Option<Box<QuadTree>>,
 }
 
 impl QuadTree {
-    fn new(bounds: Rectangle, capacity: usize) -> Self {
+    pub fn new(bounds: Rectangle, capacity: usize) -> Self {
         QuadTree {
             bounds,
             capacity,
@@ -25,7 +25,7 @@ impl QuadTree {
         }
     }
 
-    fn insert(&mut self, body: CelestialObject) {
+    pub fn insert(&mut self, body: CelestialObject) {
         if self.bodies.len() < self.capacity {
             self.bodies.push(body);
         } else {
@@ -43,7 +43,7 @@ impl QuadTree {
         }
     }
 
-    fn subdivide(&mut self) {
+    pub fn subdivide(&mut self) {
         let x = self.bounds.x;
         let y = self.bounds.y;
         let w = self.bounds.w / 2.0;
@@ -55,7 +55,7 @@ impl QuadTree {
         self.southeast = Some(Box::new(QuadTree::new(Rectangle::new(x + w, y + h, w, h), self.capacity)));
     }
 
-    fn get_index(&self, point: Point2<f64>) -> usize {
+    pub fn get_index(&self, point: Point2<f64>) -> usize {
         let x = point.x;
         let y = point.y;
         let x_mid = self.bounds.x + self.bounds.w / 2.0;
@@ -72,7 +72,7 @@ impl QuadTree {
         }
     }
 
-    fn calculate_force(&self, body: &CelestialObject, theta: f64) -> Force {
+    pub fn calculate_force(&self, body: &CelestialObject, theta: f64) -> Force {
         let distance = body.position - self.bounds.center();
         let distance_squared = distance.norm_squared();
 
@@ -81,16 +81,15 @@ impl QuadTree {
         }
 
         let mass = self.total_mass();
-        let force = (crate::objects::G * body.mass * mass) / distance_squared;
+        let force = (crate::space::objects::G * body.mass * mass) / distance_squared;
         force * distance.normalize()
     }
 
-    fn total_mass(&self) -> f64 {
+    pub fn total_mass(&self) -> f64 {
         self.bodies.iter().map(|body| body.mass).sum::<f64>()
     }
 
-    fn traverse(&self, body: &CelestialObject, theta: f64) -> Force {
-
+    pub fn traverse(&self, body: &CelestialObject, theta: f64) -> Force {
         let distance = body.position - self.bounds.center();
         let distance_squared = distance.norm_squared();
     
@@ -116,47 +115,48 @@ impl QuadTree {
         }
     }
 }
-    
-    struct Rectangle {
-        x: f64,
-        y: f64,
-        w: f64,
-        h: f64,
+
+#[derive(Clone, Copy)]
+pub struct Rectangle {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+}
+
+impl Rectangle {
+    pub fn new(x: f64, y: f64, w: f64, h: f64) -> Self {
+        Rectangle { x, y, w, h }
     }
-    
-    impl Rectangle {
-        fn new(x: f64, y: f64, w: f64, h: f64) -> Self {
-            Rectangle { x, y, w, h }
+
+    pub fn center(&self) -> Point2<f64> {
+        Point2::new(self.x + self.w / 2.0, self.y + self.h / 2.0)
+    }
+}
+
+pub fn calculate_force(body: &CelestialObject, quad_tree: &QuadTree, theta: f64) -> Force {
+    quad_tree.traverse(body, theta)
+}
+
+pub fn update_body(body: &mut CelestialObject, force: Force, dt: f64) {
+    body.acceleration = force / body.mass;
+    body.velocity += 0.5 * body.acceleration * dt; // Verlet integration 
+    body.position += body.velocity * dt;
+    body.prevposition = body.position - body.velocity * dt;
+}
+
+pub fn simulate(bodies: &mut Vec<CelestialObject>, dt: f64, num_steps: usize, theta: f64) {
+    let mut quad_tree = QuadTree::new(Rectangle::new(-1.0, -1.0, 2.0, 2.0), 4);
+
+    for _ in 0..num_steps {
+        quad_tree = QuadTree::new(Rectangle::new(-1.0, -1.0, 2.0, 2.0), 4);
+        for body in &*bodies {
+            quad_tree.insert(body.clone());
         }
-    
-        fn center(&self) -> Point2<f64> {
-            Point2::new(self.x + self.w / 2.0, self.y + self.h / 2.0)
+
+        for body in bodies.iter_mut() {
+            let force = calculate_force(body, &quad_tree, theta);
+            update_body(body, force, dt);
         }
     }
-    
-    pub fn calculate_force(body: &CelestialObject, quad_tree: &QuadTree, theta: f64) -> Force {
-        quad_tree.traverse(body, theta)
-    }
-    
-    pub fn update_body(body: &mut CelestialObject, force: Force, dt: f64) {
-        body.acceleration = force / body.mass;
-        body.velocity += 0.5 * body.acceleration * dt; // Verlet integration 
-        body.position += body.velocity * dt;
-        body.prevposition = body.position - body.velocity * dt;
-    }
-    
-    pub fn simulate(bodies: &mut Vec<CelestialObject>, dt: f64, num_steps: usize, theta: f64) {
-        let mut quad_tree = QuadTree::new(Rectangle::new(-1.0, -1.0, 2.0, 2.0), 4);
-    
-        for _ in 0..num_steps {
-            quad_tree = QuadTree::new(Rectangle::new(-1.0, -1.0, 2.0, 2.0), 4);
-            for body in &*bodies {
-                quad_tree.insert(body.clone());
-            }
-    
-            for body in bodies.iter_mut() {
-                let force = calculate_force(body, &quad_tree, theta);
-                update_body(body, force, dt);
-            }
-        }
-    }
+}

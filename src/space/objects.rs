@@ -1,3 +1,5 @@
+#[allow(dead_code)]
+
 use nalgebra::{Point2, Vector2};
 
 pub type Velocity = Vector2<f64>;
@@ -18,24 +20,24 @@ pub trait Sim {
     // fn simulate(&mut self)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct CelestialObject {
     pub name: String,
-    pub mass: f64,
-    pub position: Point2<f64>,  // x, y coordinates
-    pub velocity: Vector2<f64>, // x, y components
-    pub acceleration: Vector2<f64>,
-    pub prevposition: Point2<f64>,
+    pub mass: Mass,
+    pub position: Position,  // x, y coordinates
+    pub velocity: Velocity, // x, y components
+    pub acceleration: Acceleration,
+    pub prevposition: Position,
 }
 
 impl CelestialObject {
     pub fn new(
         name: String,
-        mass: f64,
-        position: Point2<f64>,
-        velocity: Vector2<f64>,
-        acceleration: Vector2<f64>,
-        prevposition: Point2<f64>,
+        mass: Mass,
+        position: Position,
+        velocity: Velocity,
+        acceleration: Acceleration,
+        prevposition: Position,
     ) -> Self {
         CelestialObject {
             name,
@@ -46,11 +48,11 @@ impl CelestialObject {
             prevposition: position,
         }
     }
-    pub fn get_distance(&self, other: &Position) -> Vector2<f64> {
+    pub fn get_distance(&self, other: &Position) -> Distance {
         other - self.position
     }
 
-    pub fn get_force(&self, other: &CelestialObject) -> Vector2<f64> {
+    pub fn get_force(&self, other: &CelestialObject) -> Force {
         let dist = self.get_distance(&other.position);
         if dist.norm() == 0.0 {
             return Vector2::new(0.0, 0.0);
@@ -68,3 +70,16 @@ impl PartialEq for CelestialObject {
         && self.velocity == other.velocity
     }
 }
+
+// impl Clone for CelestialObject {
+//     fn clone(&self) -> Self {
+//         CelestialObject {
+//             name: self.name.clone(),
+//             mass: self.mass,
+//             position: self.position.clone(),
+//             velocity: self.velocity.clone(),
+//             acceleration: self.acceleration.clone(),
+//             prevposition: self.prevposition.clone(),
+//         }
+//     }
+// }

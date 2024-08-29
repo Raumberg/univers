@@ -1,7 +1,7 @@
-use crate::objects::CelestialObject;
-use crate::physics;
-
 use nalgebra::{Point2, Vector2};
+
+use crate::space::objects::CelestialObject;
+use crate::engine::physics;
 
 pub struct Star;
 pub struct Planet;
@@ -83,27 +83,8 @@ impl StarSystem {
     pub fn add_body(&mut self, body: CelestialObject) {
         self.bodies.push(body);
     }
-}
 
-impl Simulatable for StarSystem {
-    fn bodies(&self) -> &Vec<CelestialObject> {
-        &self.bodies
-    }
-
-    fn simulate(&mut self, dt: f64, num_steps: usize) {
-        physics::simulate(&mut self.bodies, dt, num_steps, 0.5);
-    }
-}
-
-// Define the solar system
-pub struct SolarSystem {
-    pub bodies: Vec<CelestialObject>,
-    pub g: f64, // gravitational constant in m^3 kg^-1 s^-2
-}
-
-impl SolarSystem {
-    // Constructor to create a new solar system
-    pub fn new() -> Self {
+    pub fn solar() -> Self {
         let sun = CelestialObject::new(
             "Sun".to_string(),
             1.989e30,
@@ -177,14 +158,14 @@ impl SolarSystem {
             Point2::new(4497.072e9, 0.0), // initial prevposition
         );
 
-        SolarSystem {
+        StarSystem {
             bodies: vec![sun, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune],
             g: 6.67430e-11, 
         }
     }
 }
 
-impl Simulatable for SolarSystem {
+impl Simulatable for StarSystem {
     fn bodies(&self) -> &Vec<CelestialObject> {
         &self.bodies
     }
@@ -192,4 +173,4 @@ impl Simulatable for SolarSystem {
     fn simulate(&mut self, dt: f64, num_steps: usize) {
         physics::simulate(&mut self.bodies, dt, num_steps, 0.5);
     }
-} 
+}
