@@ -3,11 +3,20 @@ use nalgebra::{Point2, Vector2};
 mod engine;
 mod gen;
 mod space;
+mod term;
 
 use crate::space::objects::CelestialObject;
 use crate::gen::sim::Simulation;
+use crate::term::widget;
+use crate::term::prelude::*;
 
-fn main() {
+fn main() -> Result<(), io::Error>{
+    enable_raw_mode()?;
+    let mut stdout = stdout();
+    stdout.execute(EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
     let bodies = vec![
         CelestialObject::new(
             "Sun".to_string(),
@@ -42,7 +51,20 @@ fn main() {
     let mut simulation = Simulation::new(bodies, theta, time_step);
     simulation.run(iterations, false);
 
-    for body in &simulation.bodies {
-        println!("{}: position = {:?}, velocity = {:?}", body.name, body.position, body.velocity);
+    // for body in &simulation.bodies {
+    //     println!("{}: position = {:?}, velocity = {:?}", body.name, body.position, body.velocity);
+    // }
+    
+    let void = widget::Void::new(simulation);
+
+    loop {
+        terminal.draw(|f| {
+            let size = f.size();
+            let layout = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(100)]);
+            let rect = layout.split(size)[0];
+            f.render_widget(void, rect);
+        })?;
     }
 }

@@ -3,10 +3,6 @@ use nalgebra::{Point2, Vector2};
 use crate::space::objects::CelestialObject;
 use crate::engine::physics;
 
-pub struct Star;
-pub struct Planet;
-pub struct Moon;
-
 /// A trait for systems that can be simulated.
 pub trait Simulatable {
     /// A function to get the bodies of the system

@@ -1,315 +1,239 @@
-use crate::term::prelude::*;
-
-pub struct App {
-    sender: mpsc::Sender<AppEvent>,
-    is_running: bool,
-    last_tick: Duration,
-    aux_buffer: Rc<RefCell<Buffer>>,
-    inspected_effect: u8,
-    screen_area: Rect
-}
-
-#[derive(Default)]
-pub struct Fx {
-    pub post_process: Option<Effect>,
-}
-
-impl Fx {
-    pub fn push(&mut self, effect: Effect) {
-        self.post_process = Some(effect);
-    }
-
-    pub fn process_active_fx(
-        &mut self,
-        duration: Duration,
-        buffer: &mut Buffer,
-        area: Rect
-    ) {
-        self.post_process.iter_mut().for_each(|effect| { effect.process(duration, buffer, area); });
-        if self.post_process.iter().all(Effect::done) {
-            self.post_process = None;
-        }
-    }
-}
-
-impl App {
-    pub fn new(
-        sender: mpsc::Sender<AppEvent>,
-        aux_buffer_area: Rect,
-    ) -> Self {
-        Self {
-            sender,
-            is_running: true,
-            last_tick: Duration::ZERO,
-            aux_buffer: Rc::new(RefCell::new(Buffer::empty(aux_buffer_area))),
-            screen_area: Rect::default(),
-            inspected_effect: 0,
-        }
-    }
-
-    pub fn inspected_effect(&self, areas: EffectTimelineRects) -> Effect {
-        effect_in(self.inspected_effect_no, areas)
-    }
-
-    pub fn effect_timeline(&self, areas: EffectTimelineRects) -> EffectTimeline {
-        let idx = self.inspected_effect_no;
-        let area = self.aux_buffer.borrow().area;
-        let fx = transition_fx(area, self.sender.clone(), effect_in(idx, areas));
-
-        EffectTimeline::builder()
-            .effect(&fx)
-            .build()
-    }
-
-    pub fn inspected_transition_effect(&self) -> Effect {
-        let area = self.aux_buffer.borrow().area;
-        let layout = self.effect_timeline(baseline_rects()).layout(area);
-        transition_fx(area,  self.sender.clone(), self.inspected_effect(layout))
-    }
-
-    pub fn refresh_aux_buffer(&self) {
-        let effect = self.inspected_transition_effect();
-
-        let mut buf = self.aux_buffer.borrow_mut();
-        Clear.render(buf.area, &mut buf);
-
-        Block::new()
-            .style(Style::default().bg(Color::Black))
-            .render(buf.area, &mut buf);
-
-        EffectTimeline::builder()
-            .effect(&effect)
-            .build()
-            .render(buf.area, &mut buf);
-    }
-
-    pub fn apply_event(&mut self, effects: &mut Effects, e: AppEvent) {
-        match e {
-            AppEvent::Tick => (),
-            AppEvent::KeyPressed(key) => match key {
-                KeyCode::Esc => self.is_running = false,
-                KeyCode::Char(' ') => {
-                    // sends RefreshAufBuffer after transitioning out
-                    effects.push(self.inspected_transition_effect())
-                }
-                KeyCode::Enter => {
-                    self.inspected_effect_no = (self.inspected_effect_no + 1) % 3;
-                    // sends RefreshAufBuffer after transitioning out
-                    effects.push(self.inspected_transition_effect())
-                },
-                _ => (),
-            },
-            AppEvent::RefreshAufBuffer => {
-                self.refresh_aux_buffer();
-            },
-            AppEvent::Resize(r) => self.screen_area = r
-        }
-    }
-}
-
-fn main() -> Result<()> {
-    let mut terminal = setup_terminal()?;
-
-    // event handler
-    let event_handler = EventHandler::new(Duration::from_millis(33));
-    let sender = event_handler.sender();
-
-    // create app and run it
-    let app = App::new(sender, Rect::new(0, 0, 100, 40));
-    let res = run_app(&mut terminal, app, event_handler);
-
-    // restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-
-    if let Err(err) = res {
-        println!("{err:?}");
-    }
-
-    Ok(())
-}
-
-pub type AuxBuffer = Rc<RefCell<Buffer>>;
-
-fn run_app(
-    terminal: &mut Terminal,
-    mut app: App,
-    event_handler: EventHandler,
-) -> io::Result<()> {
-    let mut last_frame_instant = std::time::Instant::now();
-
-    let mut effects = Effects::default();
-    effects.push(app.inspected_effect(baseline_rects()));
-    app.refresh_aux_buffer();
-
-    while app.is_running {
-        event_handler.receive_events(|e| app.apply_event(&mut effects, e));
-
-        app.last_tick = last_frame_instant.elapsed();
-        last_frame_instant = std::time::Instant::now();
-        terminal.draw(|f| {
-            app.screen_area = f.area();
-            ui(f, &app, &mut effects)
-        })?;
-    }
-
-    Ok(())
-}
-
-fn  ui(
-    f: &mut Frame,
-    app: &App,
-    effects: &mut Effects
-) {
-    let rect = f.area();
-    if rect.area() == 0 { return; }
-
-    let buf: &mut Buffer = f.buffer_mut();
-    Clear.render(rect, buf);
-
-    let shortcut_key_style = Style::default()
-        .fg(Color::DarkGray)
-        .add_modifier(Modifier::BOLD);
-    let shortcut_label_style = Style::default()
-        .fg(Color::DarkGray);
-
-    app.aux_buffer.render_buffer(Offset::default(), buf);
-    effects.process_active_fx(app.last_tick, buf, rect);
-
-    let shortcuts = Line::from(vec![
-        Span::from("ENTER ").style(shortcut_key_style),
-        Span::from("next transition ").style(shortcut_label_style),
-        Span::from(" SPACE ").style(shortcut_key_style),
-        Span::from("replay transition ").style(shortcut_label_style),
-        Span::from(" ESC ").style(shortcut_key_style),
-        Span::from("quit").style(shortcut_label_style),
-    ]);
-
-    let centered = Rect {
-        x: rect.x + (rect.width - shortcuts.width() as u16) / 2,
-        y: rect.y + rect.height - 1,
-        width: shortcuts.width() as u16,
-        height: 1,
-    };
-    shortcuts.render(centered, buf);
-}
-
-
-fn setup_terminal() -> Result<Terminal> {
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-    terminal.hide_cursor()?;
-
-    let panic_hook = panic::take_hook();
-    panic::set_hook(Box::new(move |panic| {
-        let _ = disable_raw_mode();
-        let _ = execute!(
-            io::stderr(),
-            LeaveAlternateScreen,
-            DisableMouseCapture
-        );
-
-        panic_hook(panic);
-    }));
-
-    Ok(terminal)
-}
-
-enum AppEvent {
+use std::{
+    ops::{Deref, DerefMut},
+    time::Duration,
+  };
+  
+  use color_eyre::eyre::Result;
+  use crossterm::{
+    cursor,
+    event::{
+      DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture, Event as CrosstermEvent,
+      KeyEvent, KeyEventKind, MouseEvent,
+    },
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+  };
+  use futures::{FutureExt, StreamExt};
+  use ratatui::backend::CrosstermBackend as Backend;
+  use serde::{Deserialize, Serialize};
+  use tokio::{
+    sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
+    task::JoinHandle,
+  };
+  use tokio_util::sync::CancellationToken;
+  
+  pub type IO = std::io::Stdout;
+  pub fn io() -> IO {
+    std::io::stdout()
+  }
+  pub type Frame<'a> = ratatui::Frame<'a>;
+  
+  #[derive(Clone, Debug, Serialize, Deserialize)]
+  pub enum Event {
+    Init,
+    Quit,
+    Error,
+    Closed,
     Tick,
-    KeyPressed(KeyCode),
-    Resize(Rect),
-    RefreshAufBuffer,
-}
-
-pub struct EventHandler {
-    sender: mpsc::Sender<AppEvent>,
-    receiver: mpsc::Receiver<AppEvent>,
-    _handler: thread::JoinHandle<()>
-}
-
-impl EventHandler {
-    pub fn new(tick_rate: Duration) -> Self {
-        let (sender, receiver) = mpsc::channel();
-
-        let handler = {
-            let sender = sender.clone();
-            thread::spawn(move || {
-                let mut last_tick = std::time::Instant::now();
-                loop {
-                    let timeout = tick_rate
-                        .checked_sub(last_tick.elapsed())
-                        .unwrap_or(tick_rate);
-
-                    if event::poll(timeout).expect("unable to poll for events") {
-                        Self::apply_event(&sender);
-                    }
-
-                    if last_tick.elapsed() >= tick_rate {
-                        sender.send(AppEvent::Tick)
-                            .expect("failed to send tick event");
-
-                        last_tick = std::time::Instant::now();
-                    }
+    Render,
+    FocusGained,
+    FocusLost,
+    Paste(String),
+    Key(KeyEvent),
+    Mouse(MouseEvent),
+    Resize(u16, u16),
+  }
+  
+  pub struct TerminalInterface {
+    pub terminal: ratatui::Terminal<Backend<IO>>,
+    pub task: JoinHandle<()>,
+    pub cancellation_token: CancellationToken,
+    pub event_rx: UnboundedReceiver<Event>,
+    pub event_tx: UnboundedSender<Event>,
+    pub frame_rate: f64,
+    pub tick_rate: f64,
+    pub mouse: bool,
+    pub paste: bool,
+  }
+  
+  impl TerminalInterface {
+    pub fn new() -> Result<Self> {
+      let tick_rate = 4.0;
+      let frame_rate = 60.0;
+      let terminal = ratatui::Terminal::new(Backend::new(io()))?;
+      let (event_tx, event_rx) = mpsc::unbounded_channel();
+      let cancellation_token = CancellationToken::new();
+      let task = tokio::spawn(async {});
+      let mouse = false;
+      let paste = false;
+      Ok(Self { terminal, task, cancellation_token, event_rx, event_tx, frame_rate, tick_rate, mouse, paste })
+    }
+  
+    pub fn tick_rate(mut self, tick_rate: f64) -> Self {
+      self.tick_rate = tick_rate;
+      self
+    }
+  
+    pub fn frame_rate(mut self, frame_rate: f64) -> Self {
+      self.frame_rate = frame_rate;
+      self
+    }
+  
+    pub fn mouse(mut self, mouse: bool) -> Self {
+      self.mouse = mouse;
+      self
+    }
+  
+    pub fn paste(mut self, paste: bool) -> Self {
+      self.paste = paste;
+      self
+    }
+  
+    pub fn start(&mut self) {
+      let tick_delay = std::time::Duration::from_secs_f64(1.0 / self.tick_rate);
+      let render_delay = std::time::Duration::from_secs_f64(1.0 / self.frame_rate);
+      self.cancel();
+      self.cancellation_token = CancellationToken::new();
+      let _cancellation_token = self.cancellation_token.clone();
+      let _event_tx = self.event_tx.clone();
+      self.task = tokio::spawn(async move {
+        let mut reader = crossterm::event::EventStream::new();
+        let mut tick_interval = tokio::time::interval(tick_delay);
+        let mut render_interval = tokio::time::interval(render_delay);
+        _event_tx.send(Event::Init).unwrap();
+        loop {
+          let tick_delay = tick_interval.tick();
+          let render_delay = render_interval.tick();
+          let crossterm_event = reader.next().fuse();
+          tokio::select! {
+            _ = _cancellation_token.cancelled() => {
+              break;
+            }
+            maybe_event = crossterm_event => {
+              match maybe_event {
+                Some(Ok(evt)) => {
+                  match evt {
+                    CrosstermEvent::Key(key) => {
+                      if key.kind == KeyEventKind::Press {
+                        _event_tx.send(Event::Key(key)).unwrap();
+                      }
+                    },
+                    CrosstermEvent::Mouse(mouse) => {
+                      _event_tx.send(Event::Mouse(mouse)).unwrap();
+                    },
+                    CrosstermEvent::Resize(x, y) => {
+                      _event_tx.send(Event::Resize(x, y)).unwrap();
+                    },
+                    CrosstermEvent::FocusLost => {
+                      _event_tx.send(Event::FocusLost).unwrap();
+                    },
+                    CrosstermEvent::FocusGained => {
+                      _event_tx.send(Event::FocusGained).unwrap();
+                    },
+                    CrosstermEvent::Paste(s) => {
+                      _event_tx.send(Event::Paste(s)).unwrap();
+                    },
+                  }
                 }
-            })
-        };
-
-        Self { sender, receiver, _handler: handler }
-    }
-
-    pub(crate) fn sender(&self) -> mpsc::Sender<AppEvent> {
-        self.sender.clone()
-    }
-
-    fn next(&self) -> std::result::Result<AppEvent, mpsc::RecvError> {
-        self.receiver.recv()
-    }
-
-    fn try_next(&self) -> Option<AppEvent> {
-        match self.receiver.try_recv() {
-            Ok(e) => Some(e),
-            Err(_) => None
+                Some(Err(_)) => {
+                  _event_tx.send(Event::Error).unwrap();
+                }
+                None => {},
+              }
+            },
+            _ = tick_delay => {
+                _event_tx.send(Event::Tick).unwrap();
+            },
+            _ = render_delay => {
+                _event_tx.send(Event::Render).unwrap();
+            },
+          }
         }
+      });
     }
-
-    pub(crate) fn receive_events<F>(&self, mut f: F)
-        where F: FnMut(AppEvent)
-    {
-        f(self.next().unwrap());
-        while let Some(event) = self.try_next() { f(event) }
+  
+    pub fn stop(&self) -> Result<()> {
+      self.cancel();
+      let mut counter = 0;
+      while !self.task.is_finished() {
+        std::thread::sleep(Duration::from_millis(1));
+        counter += 1;
+        if counter > 50 {
+          self.task.abort();
+        }
+        if counter > 100 {
+          log::error!("Failed to abort task in 100 milliseconds for unknown reason");
+          break;
+        }
+      }
+      Ok(())
     }
-
-    fn apply_event(sender: &mpsc::Sender<AppEvent>) {
-        match event::read().expect("unable to read event") {
-            Event::Key(e) if e.kind == KeyEventKind::Press =>
-                sender.send(AppEvent::KeyPressed(e.code)),
-            Event::Resize(w, h) =>
-                sender.send(AppEvent::Resize(Rect::new(0, 0, w, h))),
-            _ => Ok(())
-        }.expect("failed to send event")
+  
+    pub fn enter(&mut self) -> Result<()> {
+      crossterm::terminal::enable_raw_mode()?;
+      crossterm::execute!(io(), EnterAlternateScreen, cursor::Hide)?;
+      if self.mouse {
+        crossterm::execute!(io(), EnableMouseCapture)?;
+      }
+      if self.paste {
+        crossterm::execute!(io(), EnableBracketedPaste)?;
+      }
+      self.start();
+      Ok(())
     }
-}
-
-fn baseline_rects() -> EffectTimelineRects {
-    // giving an approximate layout so that all rects resolve to unique values,
-    // enabling us to get the actual layout from the effect timeline. something
-    // of a hack...
-    EffectTimelineRects {
-        tree: Rect::new(0, 0, 25, 32),
-        chart: Rect::new(35, 0, 65, 32),
-        cell_filter: Rect::new(25, 0, 6, 32),
-        areas: Rect::new(31, 0, 4, 32),
-        legend: Rect::new(35, 34, 29, 6),
-        cell_filter_legend: Rect::new(35, 34, 9, 2),
-        areas_legend: Rect::new(48, 34, 16, 2),
+  
+    pub fn exit(&mut self) -> Result<()> {
+      self.stop()?;
+      if crossterm::terminal::is_raw_mode_enabled()? {
+        self.flush()?;
+        if self.paste {
+          crossterm::execute!(io(), DisableBracketedPaste)?;
+        }
+        if self.mouse {
+          crossterm::execute!(io(), DisableMouseCapture)?;
+        }
+        crossterm::execute!(io(), LeaveAlternateScreen, cursor::Show)?;
+        crossterm::terminal::disable_raw_mode()?;
+      }
+      Ok(())
     }
-}
+  
+    pub fn cancel(&self) {
+      self.cancellation_token.cancel();
+    }
+  
+    pub fn suspend(&mut self) -> Result<()> {
+      self.exit()?;
+      #[cfg(not(windows))]
+      signal_hook::low_level::raise(signal_hook::consts::signal::SIGTSTP)?;
+      Ok(())
+    }
+  
+    pub fn resume(&mut self) -> Result<()> {
+      self.enter()?;
+      Ok(())
+    }
+  
+    pub async fn next(&mut self) -> Option<Event> {
+      self.event_rx.recv().await
+    }
+  }
+  
+  impl Deref for Tui {
+    type Target = ratatui::Terminal<Backend<IO>>;
+  
+    fn deref(&self) -> &Self::Target {
+      &self.terminal
+    }
+  }
+  
+  impl DerefMut for Tui {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+      &mut self.terminal
+    }
+  }
+  
+  impl Drop for Tui {
+    fn drop(&mut self) {
+      self.exit().unwrap();
+    }
+  }

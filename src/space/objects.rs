@@ -2,22 +2,16 @@
 
 use nalgebra::{Point2, Vector2};
 
-pub type Velocity = Vector2<f64>;
-pub type Position = Point2<f64>;
-pub type Mass = f64;
-pub type Acceleration = Vector2<f64>;
-pub type Distance = Vector2<f64>;
-pub type Force = Vector2<f64>;
+use crate::space::types::*;
 
-pub const G: f64 = 6.67428e-11; // gravitational constant, in m^3 kg^-1 s^-2
-pub const AU: f64 = 1.4960e+11; // astronomical units, ~distance between sun and earth
-
-pub trait Sim {
-    fn get_name(&self) -> String;
-    fn get_position(&self) -> Position; // Point2<T>
-    fn get_velocity(&self) -> Velocity; // Vector2<T>
-    fn get_mass(&self) -> f64;
-    // fn simulate(&mut self)
+pub enum CelestialBodyType {
+    Star,
+    Planet,
+    Moon,
+    Asteroid,
+    Comet,
+    GasGiant,
+    System
 }
 
 #[derive(Clone, Debug, Default)]

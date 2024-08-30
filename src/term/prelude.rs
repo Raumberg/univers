@@ -5,7 +5,7 @@ pub use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Offset, Rect},
     prelude::*,
     style::{Color, Style, Modifier},
-    widgets::{Block, Borders, Circle, Line, Paragraph, Widget, Clear},
+    widgets::{Block, Borders, Paragraph, Widget, Clear},
     buffer::Buffer,
     text::{Line, Span},
     Frame,
@@ -24,5 +24,6 @@ pub use std::rc::Rc;
 pub use std::sync::mpsc;
 pub use std::time::Duration;
 pub use std::{io, panic, thread};
+pub use std::io::stdout;
 
-pub use terminal::TerminalInterface;
+// pub use terminal::TerminalInterface;

@@ -1,4 +1,5 @@
-use crate::space::objects::{Acceleration, CelestialObject, Force, Velocity};
+use crate::space::objects::CelestialObject;
+use crate::space::types::*;
 
 use nalgebra::{Point2, Vector2};
 
