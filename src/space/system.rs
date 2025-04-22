@@ -72,6 +72,15 @@ pub struct StarSystem {
     pub g: f64, // gravitational constant in m^3 kg^-1 s^-2
 }
 
+impl Clone for StarSystem {
+    fn clone(&self) -> Self {
+        StarSystem {
+            bodies: self.bodies.clone(),
+            g: self.g,
+        }
+    }
+}
+
 impl StarSystem {
     pub fn new() -> Self {
         StarSystem {

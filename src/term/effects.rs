@@ -1,4 +1,4 @@
-use crate::AppEvent;
+use crate::term::AppEvent;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
 use std::sync::mpsc;
@@ -134,5 +134,4 @@ pub fn cell_filter_and_area_fx(
         prolong_start(d * 3,  fade_from_fg(Color::Black, (700, QuadOut)))
             .with_area(legend),
     ])
-}
 }
