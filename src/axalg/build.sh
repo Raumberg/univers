@@ -1,1 +1,0 @@
-nvcc -cubin kernel.cu -o kernel.cubin

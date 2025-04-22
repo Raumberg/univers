@@ -10,7 +10,7 @@ use ratatui::{
 };
 
 use crate::space::system::StarSystem;
-use crate::term::star_system::StarSystemApp;
+use crate::term::star_system::{StarSystemApp, SimulationSpeed};
 
 pub struct App {
     sender: mpsc::Sender<AppEvent>,
@@ -183,6 +183,15 @@ impl App {
             KeyCode::Char('3') => {
                 self.simulation_speed = SimulationSpeed::Fast;
             }
+            KeyCode::Char('4') => {
+                self.simulation_speed = SimulationSpeed::VeryFast;
+            }
+            KeyCode::Char('5') => {
+                self.simulation_speed = SimulationSpeed::Extreme;
+            }
+            KeyCode::Char('6') => {
+                self.simulation_speed = SimulationSpeed::Cosmic;
+            }
             KeyCode::Char('+') | KeyCode::Char('=') => {
                 self.scale *= 1.1;
             }
@@ -226,6 +235,9 @@ impl App {
             SimulationSpeed::Slow => 1,
             SimulationSpeed::Normal => 5,
             SimulationSpeed::Fast => 20,
+            SimulationSpeed::VeryFast => 100,
+            SimulationSpeed::Extreme => 500,
+            SimulationSpeed::Cosmic => 2000,
         };
 
         if steps > 0 {
@@ -322,7 +334,7 @@ impl App {
             let info = vec![
                 Line::from(vec![
                     Span::styled("Time Elapsed: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{:.2} days", self.time_elapsed / 86400.0), Style::default().fg(Color::White)),
+                    Span::styled(self.format_time_elapsed(), Style::default().fg(Color::White)),
                 ]),
                 Line::from(vec![
                     Span::styled("Focus: ", Style::default().fg(Color::Gray)),
@@ -350,12 +362,18 @@ impl App {
                             SimulationSpeed::Slow => "SLOW",
                             SimulationSpeed::Normal => "NORMAL",
                             SimulationSpeed::Fast => "FAST",
+                            SimulationSpeed::VeryFast => "VERY FAST",
+                            SimulationSpeed::Extreme => "EXTREME",
+                            SimulationSpeed::Cosmic => "COSMIC",
                         },
                         Style::default().fg(match self.simulation_speed {
                             SimulationSpeed::Paused => Color::Red,
                             SimulationSpeed::Slow => Color::Yellow,
                             SimulationSpeed::Normal => Color::Green,
                             SimulationSpeed::Fast => Color::Cyan,
+                            SimulationSpeed::VeryFast => Color::Blue,
+                            SimulationSpeed::Extreme => Color::Magenta,
+                            SimulationSpeed::Cosmic => Color::LightMagenta,
                         })
                     ),
                 ]),
@@ -413,6 +431,38 @@ impl App {
                 .block(Block::default().borders(Borders::ALL).title("Help"))
                 .style(Style::default().fg(Color::White));
             f.render_widget(help, area);
+        }
+    }
+
+    fn format_time_elapsed(&self) -> String {
+        let seconds_per_day = 86400.0;
+        let days_per_month = 30.44; // Average month length
+        let days_per_year = 365.25; // Including leap years
+        
+        let days = self.time_elapsed / seconds_per_day;
+        
+        if days < 100.0 {
+            // For short periods, show days
+            format!("{:.2} days", days)
+        } else if days < 1000.0 {
+            // For medium periods, show months and days
+            let months = (days / days_per_month).floor();
+            let remaining_days = days % days_per_month;
+            format!("{:.0} months, {:.1} days", months, remaining_days)
+        } else {
+            // For long periods, show years, months, and days
+            let years = (days / days_per_year).floor();
+            let remaining_days = days % days_per_year;
+            let months = (remaining_days / days_per_month).floor();
+            let last_days = remaining_days % days_per_month;
+            
+            if years > 100.0 {
+                // For very long periods, only show years
+                format!("{:.1} years", days / days_per_year)
+            } else {
+                // Otherwise show years, months, and days
+                format!("{:.0} years, {:.0} months, {:.1} days", years, months, last_days)
+            }
         }
     }
 }

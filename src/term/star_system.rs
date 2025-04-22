@@ -26,6 +26,9 @@ pub enum SimulationSpeed {
     Slow,
     Normal,
     Fast,
+    VeryFast,
+    Extreme,
+    Cosmic,
 }
 
 pub struct StarSystemApp {
@@ -117,6 +120,15 @@ impl StarSystemApp {
             KeyCode::Char('3') => {
                 self.simulation_speed = SimulationSpeed::Fast;
             }
+            KeyCode::Char('4') => {
+                self.simulation_speed = SimulationSpeed::VeryFast;
+            }
+            KeyCode::Char('5') => {
+                self.simulation_speed = SimulationSpeed::Extreme;
+            }
+            KeyCode::Char('6') => {
+                self.simulation_speed = SimulationSpeed::Cosmic;
+            }
             KeyCode::Char('+') | KeyCode::Char('=') => {
                 self.scale *= 1.5;
             }
@@ -173,6 +185,9 @@ impl StarSystemApp {
             SimulationSpeed::Slow => 1,
             SimulationSpeed::Normal => 5,
             SimulationSpeed::Fast => 20,
+            SimulationSpeed::VeryFast => 100,
+            SimulationSpeed::Extreme => 500,
+            SimulationSpeed::Cosmic => 2000,
         };
 
         if steps > 0 {
@@ -188,6 +203,39 @@ impl StarSystemApp {
                         self.trails[i].remove(0);
                     }
                 }
+            }
+        }
+    }
+    
+    // Format time elapsed into appropriate units (days, months, years)
+    fn format_time_elapsed(&self) -> String {
+        let seconds_per_day = 86400.0;
+        let days_per_month = 30.44; // Average month length
+        let days_per_year = 365.25; // Including leap years
+        
+        let days = self.time_elapsed / seconds_per_day;
+        
+        if days < 100.0 {
+            // For short periods, show days
+            format!("{:.2} days", days)
+        } else if days < 1000.0 {
+            // For medium periods, show months and days
+            let months = (days / days_per_month).floor();
+            let remaining_days = days % days_per_month;
+            format!("{:.0} months, {:.1} days", months, remaining_days)
+        } else {
+            // For long periods, show years, months, and days
+            let years = (days / days_per_year).floor();
+            let remaining_days = days % days_per_year;
+            let months = (remaining_days / days_per_month).floor();
+            let last_days = remaining_days % days_per_month;
+            
+            if years > 100.0 {
+                // For very long periods, only show years
+                format!("{:.1} years", days / days_per_year)
+            } else {
+                // Otherwise show years, months, and days
+                format!("{:.0} years, {:.0} months, {:.1} days", years, months, last_days)
             }
         }
     }
@@ -301,7 +349,7 @@ impl StarSystemApp {
             let info = vec![
                 Line::from(vec![
                     Span::styled("Time Elapsed: ", Style::default().fg(Color::Gray)),
-                    Span::styled(format!("{:.2} days", self.time_elapsed / 86400.0), Style::default().fg(Color::White)),
+                    Span::styled(self.format_time_elapsed(), Style::default().fg(Color::White)),
                 ]),
                 Line::from(vec![
                     Span::styled("Focus: ", Style::default().fg(Color::Gray)),
@@ -329,12 +377,18 @@ impl StarSystemApp {
                             SimulationSpeed::Slow => "SLOW",
                             SimulationSpeed::Normal => "NORMAL",
                             SimulationSpeed::Fast => "FAST",
+                            SimulationSpeed::VeryFast => "VERY FAST",
+                            SimulationSpeed::Extreme => "EXTREME",
+                            SimulationSpeed::Cosmic => "COSMIC",
                         },
                         Style::default().fg(match self.simulation_speed {
                             SimulationSpeed::Paused => Color::Red,
                             SimulationSpeed::Slow => Color::Yellow,
                             SimulationSpeed::Normal => Color::Green,
                             SimulationSpeed::Fast => Color::Cyan,
+                            SimulationSpeed::VeryFast => Color::Blue,
+                            SimulationSpeed::Extreme => Color::Magenta,
+                            SimulationSpeed::Cosmic => Color::LightMagenta,
                         })
                     ),
                 ]),
@@ -363,8 +417,8 @@ impl StarSystemApp {
                     Span::raw(" - Pause/Resume simulation"),
                 ]),
                 Line::from(vec![
-                    Span::styled("1, 2, 3", Style::default().fg(Color::Yellow)),
-                    Span::raw(" - Set simulation speed (Slow, Normal, Fast)"),
+                    Span::styled("1-6", Style::default().fg(Color::Yellow)),
+                    Span::raw(" - Set simulation speed (Slow to Cosmic)"),
                 ]),
                 Line::from(vec![
                     Span::styled("+, -", Style::default().fg(Color::Yellow)),

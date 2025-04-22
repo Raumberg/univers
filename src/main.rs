@@ -22,9 +22,21 @@ use crate::space::system::{StarSystem, Simulatable};
 
 const MAX_TRAIL_LENGTH: usize = 100;
 
+#[derive(PartialEq, Copy, Clone)]
+enum SimulationSpeed {
+    Paused,
+    Slow,
+    Normal,
+    Fast,
+    VeryFast,
+    Extreme,
+    Cosmic,
+}
+
 struct App {
     solar_system: StarSystem,
     simulation_running: bool,
+    simulation_speed: SimulationSpeed,
     time_step: f64,
     time_elapsed: f64,
     scale: f64,
@@ -46,6 +58,7 @@ impl App {
         App {
             solar_system: StarSystem::solar(),
             simulation_running: true,
+            simulation_speed: SimulationSpeed::Normal,
             time_step: 3600.0, // 1 hour in seconds
             time_elapsed: 0.0,
             scale: 1e-10, // Scale factor for display
@@ -69,9 +82,24 @@ impl App {
     }
 
     fn on_tick(&mut self) {
-        if self.simulation_running {
-            self.solar_system.simulate(self.time_step, 5);
-            self.time_elapsed += self.time_step * 5.0;
+        if !self.simulation_running || self.simulation_speed == SimulationSpeed::Paused {
+            return;
+        }
+
+        // Determine number of simulation steps based on speed
+        let steps = match self.simulation_speed {
+            SimulationSpeed::Paused => 0,
+            SimulationSpeed::Slow => 1,
+            SimulationSpeed::Normal => 5,
+            SimulationSpeed::Fast => 20,
+            SimulationSpeed::VeryFast => 100,
+            SimulationSpeed::Extreme => 500,
+            SimulationSpeed::Cosmic => 2000,
+        };
+
+        if steps > 0 {
+            self.solar_system.simulate(self.time_step, steps);
+            self.time_elapsed += self.time_step * steps as f64;
             self.update_trails();
         }
     }
@@ -82,7 +110,29 @@ impl App {
                 self.simulation_running = false;
             }
             KeyCode::Char(' ') => {
-                self.simulation_running = !self.simulation_running;
+                if self.simulation_speed == SimulationSpeed::Paused {
+                    self.simulation_speed = SimulationSpeed::Normal;
+                } else {
+                    self.simulation_speed = SimulationSpeed::Paused;
+                }
+            }
+            KeyCode::Char('1') => {
+                self.simulation_speed = SimulationSpeed::Slow;
+            }
+            KeyCode::Char('2') => {
+                self.simulation_speed = SimulationSpeed::Normal;
+            }
+            KeyCode::Char('3') => {
+                self.simulation_speed = SimulationSpeed::Fast;
+            }
+            KeyCode::Char('4') => {
+                self.simulation_speed = SimulationSpeed::VeryFast;
+            }
+            KeyCode::Char('5') => {
+                self.simulation_speed = SimulationSpeed::Extreme;
+            }
+            KeyCode::Char('6') => {
+                self.simulation_speed = SimulationSpeed::Cosmic;
             }
             KeyCode::Char('+') | KeyCode::Char('=') => {
                 self.scale *= 1.5;
@@ -122,6 +172,39 @@ impl App {
                 self.update_trails();
             }
             _ => {}
+        }
+    }
+    
+    // Format time elapsed into appropriate units (days, months, years)
+    fn format_time_elapsed(&self) -> String {
+        let seconds_per_day = 86400.0;
+        let days_per_month = 30.44; // Average month length
+        let days_per_year = 365.25; // Including leap years
+        
+        let days = self.time_elapsed / seconds_per_day;
+        
+        if days < 100.0 {
+            // For short periods, show days
+            format!("{:.2} days", days)
+        } else if days < 1000.0 {
+            // For medium periods, show months and days
+            let months = (days / days_per_month).floor();
+            let remaining_days = days % days_per_month;
+            format!("{:.0} months, {:.1} days", months, remaining_days)
+        } else {
+            // For long periods, show years, months, and days
+            let years = (days / days_per_year).floor();
+            let remaining_days = days % days_per_year;
+            let months = (remaining_days / days_per_month).floor();
+            let last_days = remaining_days % days_per_month;
+            
+            if years > 100.0 {
+                // For very long periods, only show years
+                format!("{:.1} years", days / days_per_year)
+            } else {
+                // Otherwise show years, months, and days
+                format!("{:.0} years, {:.0} months, {:.1} days", years, months, last_days)
+            }
         }
     }
 }
@@ -286,17 +369,37 @@ fn ui(f: &mut Frame, app: &App) {
         });
     f.render_widget(canvas, chunks[1]);
 
-    // Info panel
+    // Info panel at the bottom
     let focus_body = &app.solar_system.bodies[app.focus_body_index];
     let velocity_magnitude = (focus_body.velocity.x.powi(2) + focus_body.velocity.y.powi(2)).sqrt();
     
+    let status_text = match app.simulation_speed {
+        SimulationSpeed::Paused => "PAUSED",
+        SimulationSpeed::Slow => "SLOW",
+        SimulationSpeed::Normal => "NORMAL",
+        SimulationSpeed::Fast => "FAST",
+        SimulationSpeed::VeryFast => "VERY FAST",
+        SimulationSpeed::Extreme => "EXTREME",
+        SimulationSpeed::Cosmic => "COSMIC",
+    };
+    
+    let status_color = match app.simulation_speed {
+        SimulationSpeed::Paused => Color::Red,
+        SimulationSpeed::Slow => Color::Yellow,
+        SimulationSpeed::Normal => Color::Green,
+        SimulationSpeed::Fast => Color::Cyan,
+        SimulationSpeed::VeryFast => Color::Blue, 
+        SimulationSpeed::Extreme => Color::Magenta,
+        SimulationSpeed::Cosmic => Color::LightMagenta,
+    };
+    
     let info = Line::from(vec![
-        Span::styled(format!("Time: {:.2} days | ", app.time_elapsed / 86400.0), Style::default().fg(Color::Gray)),
+        Span::styled(format!("Time: {} | ", app.format_time_elapsed()), Style::default().fg(Color::Gray)),
         Span::styled(format!("Focus: {} | ", focus_body.name), Style::default().fg(Color::White)),
         Span::styled(format!("Vel: {:.2} km/s | ", velocity_magnitude / 1000.0), Style::default().fg(Color::White)),
         Span::styled(
-            format!("Status: {} | ", if app.simulation_running { "RUNNING" } else { "PAUSED" }),
-            Style::default().fg(if app.simulation_running { Color::Green } else { Color::Red })
+            format!("Speed: {} | ", status_text),
+            Style::default().fg(status_color)
         ),
         Span::styled(
             format!("Trails: {} | Vectors: {} | ", 
@@ -305,7 +408,7 @@ fn ui(f: &mut Frame, app: &App) {
             ),
             Style::default().fg(Color::Yellow)
         ),
-        Span::styled("[q]uit [space]pause [t]rails [v]ectors [+/-]zoom [←/→]focus [r]eset [c]lear", Style::default().fg(Color::Cyan)),
+        Span::styled("[1-6]speed [q]uit [space]pause [t]rails [v]ectors [+/-]zoom [←/→]focus [r]eset [c]lear", Style::default().fg(Color::Cyan)),
     ]);
 
     let info_panel = Paragraph::new(info)

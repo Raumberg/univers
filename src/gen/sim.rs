@@ -1,6 +1,5 @@
 use crate::space::objects::{Acceleration, CelestialObject};
 use crate::engine::physics::{QuadTree, Rectangle};
-use crate::space::system;
 
 pub struct Simulation {
     pub bodies: Vec<CelestialObject>,

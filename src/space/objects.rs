@@ -70,16 +70,3 @@ impl PartialEq for CelestialObject {
         && self.velocity == other.velocity
     }
 }
-
-// impl Clone for CelestialObject {
-//     fn clone(&self) -> Self {
-//         CelestialObject {
-//             name: self.name.clone(),
-//             mass: self.mass,
-//             position: self.position.clone(),
-//             velocity: self.velocity.clone(),
-//             acceleration: self.acceleration.clone(),
-//             prevposition: self.prevposition.clone(),
-//         }
-//     }
-// }
