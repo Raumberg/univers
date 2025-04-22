@@ -45,7 +45,7 @@ impl CelestialObject {
             position,
             velocity,
             acceleration,
-            prevposition: position,
+            prevposition,
         }
     }
     pub fn get_distance(&self, other: &Position) -> Distance {

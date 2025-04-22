@@ -1,4 +1,4 @@
-use crate::space::objects::{Acceleration, CelestialObject, Force, Velocity};
+use crate::space::objects::{CelestialObject, Force};
 
 use nalgebra::{Point2, Vector2};
 
@@ -72,7 +72,7 @@ impl QuadTree {
         }
     }
 
-    pub fn calculate_force(&self, body: &CelestialObject, theta: f64) -> Force {
+    pub fn calculate_force(&self, body: &CelestialObject, _theta: f64) -> Force {
         let distance = body.position - self.bounds.center();
         let distance_squared = distance.norm_squared();
 
@@ -146,10 +146,8 @@ pub fn update_body(body: &mut CelestialObject, force: Force, dt: f64) {
 }
 
 pub fn simulate(bodies: &mut Vec<CelestialObject>, dt: f64, num_steps: usize, theta: f64) {
-    let mut quad_tree = QuadTree::new(Rectangle::new(-1.0, -1.0, 2.0, 2.0), 4);
-
     for _ in 0..num_steps {
-        quad_tree = QuadTree::new(Rectangle::new(-1.0, -1.0, 2.0, 2.0), 4);
+        let mut quad_tree = QuadTree::new(Rectangle::new(-1.0, -1.0, 2.0, 2.0), 4);
         for body in &*bodies {
             quad_tree.insert(body.clone());
         }

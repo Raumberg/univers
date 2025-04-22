@@ -10,7 +10,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
     text::{Span, Line},
-    widgets::{Block, Borders, canvas::Canvas, Paragraph},
+    widgets::{Block, Borders, canvas::{Canvas, Line as CanvasLine}, Paragraph},
     Frame, Terminal,
 };
 
@@ -229,7 +229,13 @@ fn ui(f: &mut Frame, app: &App) {
                     let trail_vec: Vec<&(f64, f64)> = trail.iter().collect();
                     for window in trail_vec.windows(2) {
                         if let [&p1, &p2] = window {
-                            ctx.line(p1.0, p1.1, p2.0, p2.1, trail_color);
+                            ctx.draw(&CanvasLine {
+                                x1: p1.0,
+                                y1: p1.1,
+                                x2: p2.0,
+                                y2: p2.1,
+                                color: trail_color,
+                            });
                         }
                     }
                 }
@@ -259,7 +265,13 @@ fn ui(f: &mut Frame, app: &App) {
                     let vel_scale = 1e6; // Scale the velocity vector for visibility
                     let end_x = body.position.x + body.velocity.x * vel_scale;
                     let end_y = body.position.y + body.velocity.y * vel_scale;
-                    ctx.line(body.position.x, body.position.y, end_x, end_y, color);
+                    ctx.draw(&CanvasLine {
+                        x1: body.position.x,
+                        y1: body.position.y,
+                        x2: end_x,
+                        y2: end_y,
+                        color,
+                    });
                 }
 
                 // Highlight focused body with an arrow below
