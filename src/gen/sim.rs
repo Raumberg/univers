@@ -1,29 +1,48 @@
 use crate::space::objects::{Acceleration, CelestialObject};
-use crate::engine::physics::{QuadTree, Rectangle};
+use nalgebra::Vector2;
 
 pub struct Simulation {
     pub bodies: Vec<CelestialObject>,
-    pub quad_tree: QuadTree,
-    pub theta: f64,
     pub time_step: f64,
 }
 
 impl Simulation {
-    pub fn new(bodies: Vec<CelestialObject>, theta: f64, time_step: f64) -> Self {
-        let bounds = Rectangle::new(-1000.0, -1000.0, 2000.0, 2000.0);
-        let quad_tree = QuadTree::new(bounds, 4);
-        Simulation { bodies, quad_tree, theta, time_step }
+    pub fn new(bodies: Vec<CelestialObject>, time_step: f64) -> Self {
+        Simulation { bodies, time_step }
     }
 
     pub fn step(&mut self) {
-        self.quad_tree = QuadTree::new(self.quad_tree.bounds, 4);
-        for body in &self.bodies {
-            self.quad_tree.insert(body.clone());
+        // Calculate forces for each body
+        let body_count = self.bodies.len();
+        let mut forces = vec![Vector2::new(0.0, 0.0); body_count];
+        
+        // Store current positions to avoid borrowing issues
+        let positions: Vec<(&str, nalgebra::Point2<f64>, f64)> = self.bodies
+            .iter()
+            .map(|b| (b.name.as_str(), b.position, b.mass))
+            .collect();
+        
+        // Calculate forces between all pairs of bodies
+        for i in 0..body_count {
+            for j in 0..body_count {
+                if i != j {
+                    let (_, pos_i, mass_i) = positions[i];
+                    let (_, pos_j, mass_j) = positions[j];
+                    
+                    let direction = pos_j - pos_i;
+                    let distance_squared = direction.norm_squared();
+                    
+                    if distance_squared > 0.0 {
+                        let magnitude = (crate::space::objects::G * mass_i * mass_j) / distance_squared;
+                        forces[i] += magnitude * direction.normalize();
+                    }
+                }
+            }
         }
-
-        for body in &mut self.bodies {
-            let force = self.quad_tree.traverse(&body, self.theta);
-            let acceleration = Acceleration::new(force.x / body.mass, force.y / body.mass);
+        
+        // Update positions based on forces
+        for (i, body) in self.bodies.iter_mut().enumerate() {
+            let acceleration = Acceleration::new(forces[i].x / body.mass, forces[i].y / body.mass);
             body.velocity += acceleration * self.time_step;
             body.position += body.velocity * self.time_step;
         }
