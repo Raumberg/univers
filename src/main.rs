@@ -412,7 +412,35 @@ fn render_simulation_canvas(f: &mut Frame, app: &App, area: ratatui::layout::Rec
     f.render_widget(canvas, area);
 }
 
-// Detailed information panel
+fn format_value(value: f64, unit: &str) -> String {
+    if value.abs() < 1.0 && value != 0.0 {
+        // Small values
+        if value.abs() < 0.000001 {
+            format!("{:.2} nano{}", value * 1_000_000_000.0, unit)
+        } else if value.abs() < 0.001 {
+            format!("{:.2} micro{}", value * 1_000_000.0, unit)
+        } else {
+            format!("{:.2} milli{}", value * 1_000.0, unit)
+        }
+    } else if value.abs() >= 1_000_000_000_000.0 {
+        // Trillions
+        format!("{:.2} trillion {}", value / 1_000_000_000_000.0, unit)
+    } else if value.abs() >= 1_000_000_000.0 {
+        // Billions
+        format!("{:.2} billion {}", value / 1_000_000_000.0, unit)
+    } else if value.abs() >= 1_000_000.0 {
+        // Millions
+        format!("{:.2} million {}", value / 1_000_000.0, unit)
+    } else if value.abs() >= 1_000.0 {
+        // Thousands
+        format!("{:.2} thousand {}", value / 1_000.0, unit)
+    } else {
+        // Regular values
+        format!("{:.2} {}", value, unit)
+    }
+}
+
+// Now modify the detailed info panel to use this function
 fn render_detailed_info(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let focus_body = &app.solar_system.bodies[app.focus_body_index];
     
@@ -442,15 +470,17 @@ fn render_detailed_info(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         )),
         Line::from("―――――――――――――――――――――"),
         Line::from(Span::styled(
-            format!("Mass: {:.2e} kg", focus_body.mass),
+            format!("Mass: {}", format_value(focus_body.mass, "kg")),
             Style::default().fg(Color::White)
         )),
         Line::from(Span::styled(
-            format!("Position: ({:.2e}, {:.2e}) m", focus_body.position.x, focus_body.position.y),
+            format!("Position: ({}, {})", 
+                format_value(focus_body.position.x, "m"),
+                format_value(focus_body.position.y, "m")),
             Style::default().fg(Color::White)
         )),
         Line::from(Span::styled(
-            format!("Velocity: {:.2e} m/s", velocity_magnitude),
+            format!("Velocity: {}", format_value(velocity_magnitude, "m/s")),
             Style::default().fg(Color::White)
         )),
         Line::from(Span::styled(
@@ -460,7 +490,7 @@ fn render_detailed_info(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
             Style::default().fg(Color::White)
         )),
         Line::from(Span::styled(
-            format!("Acceleration: {:.2e} m/s²", acceleration),
+            format!("Acceleration: {}", format_value(acceleration, "m/s²")),
             Style::default().fg(Color::White)
         )),
     ];
@@ -468,7 +498,7 @@ fn render_detailed_info(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     // Add distance from Sun for non-Sun bodies
     if app.focus_body_index > 0 {
         lines.push(Line::from(Span::styled(
-            format!("Distance from Sun: {:.2e} m", distance_from_sun),
+            format!("Distance from Sun: {}", format_value(distance_from_sun, "m")),
             Style::default().fg(Color::White)
         )));
         
