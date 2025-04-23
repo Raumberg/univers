@@ -15,12 +15,11 @@ use ratatui::{
 };
 
 mod engine;
-mod gen;
 mod space;
 
 use crate::space::system::{StarSystem, Simulatable};
 
-const MAX_TRAIL_LENGTH: usize = 100;
+const MAX_TRAIL_LENGTH: usize = 300;
 
 #[derive(PartialEq, Copy, Clone)]
 enum SimulationSpeed {
