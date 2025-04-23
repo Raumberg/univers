@@ -30,8 +30,9 @@ The simulation runs in your terminal using [ratatui](https://github.com/ratatui-
 | 1-6 | Set simulation speed (1=slow, 6=cosmic) |
 | +/- | Zoom in/out |
 | Left/Right | Change focus to prev/next celestial body |
-| i | Toggle information panel |
+| i | Toggle detailed information panel |
 | t | Toggle orbit trails |
+| v | Toggle velocity vectors |
 | r | Reset simulation |
 | c | Clear trails |
 | q | Quit |

@@ -19,7 +19,7 @@ mod space;
 
 use crate::space::system::{StarSystem, Simulatable};
 
-const MAX_TRAIL_LENGTH: usize = 300;
+const MAX_TRAIL_LENGTH: usize = 200;
 
 #[derive(PartialEq, Copy, Clone)]
 enum SimulationSpeed {
@@ -42,6 +42,7 @@ struct App {
     focus_body_index: usize,
     show_trails: bool,
     show_velocity: bool,
+    show_detailed_info: bool,
     trails: Vec<VecDeque<(f64, f64)>>,
 }
 
@@ -58,12 +59,13 @@ impl App {
             solar_system: StarSystem::solar(),
             simulation_running: true,
             simulation_speed: SimulationSpeed::Normal,
-            time_step: 3600.0, // 1 hour in seconds
+            time_step: 3600.0,      // 1 hour in seconds
             time_elapsed: 0.0,
-            scale: 1e-10, // Scale factor for display
-            focus_body_index: 0, // Focus on Sun by default
+            scale: 1e-10,           // Scale factor for display
+            focus_body_index: 0,    // Focus on Sun by default
             show_trails: true,
             show_velocity: true,
+            show_detailed_info: false,
             trails,
         }
     }
@@ -93,7 +95,7 @@ impl App {
             SimulationSpeed::Fast => 20,
             SimulationSpeed::VeryFast => 100,
             SimulationSpeed::Extreme => 500,
-            SimulationSpeed::Cosmic => 2000,
+            SimulationSpeed::Cosmic => 1000,
         };
 
         if steps > 0 {
@@ -114,6 +116,9 @@ impl App {
                 } else {
                     self.simulation_speed = SimulationSpeed::Paused;
                 }
+            }
+            KeyCode::Char('i') => {
+                self.show_detailed_info = !self.show_detailed_info;
             }
             KeyCode::Char('1') => {
                 self.simulation_speed = SimulationSpeed::Slow;
@@ -182,26 +187,27 @@ impl App {
         
         let days = self.time_elapsed / seconds_per_day;
         
-        if days < 100.0 {
-            // For short periods, show days
-            format!("{:.2} days", days)
-        } else if days < 1000.0 {
-            // For medium periods, show months and days
-            let months = (days / days_per_month).floor();
-            let remaining_days = days % days_per_month;
-            format!("{:.0} months, {:.1} days", months, remaining_days)
-        } else {
-            // For long periods, show years, months, and days
-            let years = (days / days_per_year).floor();
-            let remaining_days = days % days_per_year;
-            let months = (remaining_days / days_per_month).floor();
-            let last_days = remaining_days % days_per_month;
-            
-            if years > 100.0 {
+        match days {
+            d if d < 100.0 => {
+                // For short periods, show days
+                format!("{:.2} days", d)
+            },
+            d if d < 1000.0 => {
+                // For medium periods, show months and days
+                let months = (d / days_per_month).floor();
+                let remaining_days = d % days_per_month;
+                format!("{:.0} months, {:.1} days", months, remaining_days)
+            },
+            d if d > 100.0 * days_per_year => {
                 // For very long periods, only show years
                 format!("{:.1} years", days / days_per_year)
-            } else {
-                // Otherwise show years, months, and days
+            },
+            _ => {
+                // For long periods (but not extremely long), show years, months, and days
+                let years = (days / days_per_year).floor();
+                let remaining_days = days % days_per_year;
+                let months = (remaining_days / days_per_month).floor();
+                let last_days = remaining_days % days_per_month;
                 format!("{:.0} years, {:.0} months, {:.1} days", years, months, last_days)
             }
         }
@@ -268,23 +274,60 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
 }
 
 fn ui(f: &mut Frame, app: &App) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // Title
-            Constraint::Min(5),    // Canvas for simulation
-            Constraint::Length(3), // Info panel
-        ])
-        .split(f.area());
+    // First, determine if we need to show the detailed info panel
+    let main_chunks = if app.show_detailed_info {
+        // If detailed info is shown, use a horizontal split for the main area
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Min(5),    // Body (simulation and info)
+                Constraint::Length(3), // Bottom controls
+            ])
+            .split(f.area())
+    } else {
+        // Original layout with just vertical split
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(3), // Title
+                Constraint::Min(5),    // Canvas for simulation
+                Constraint::Length(3), // Info panel
+            ])
+            .split(f.area())
+    };
 
     // Title
-    let title = Paragraph::new("Univers - Star System Simulation")
+    let title = Paragraph::new("Unive.rs - Star System Simulation")
         .style(Style::default().fg(Color::Cyan))
         .alignment(ratatui::layout::Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
-    f.render_widget(title, chunks[0]);
+    f.render_widget(title, main_chunks[0]);
 
-    // Simulation Canvas
+    // Simulation area
+    if app.show_detailed_info {
+        // Split the main area horizontally for simulation and detailed info
+        let body_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(70), // Simulation takes 70%
+                Constraint::Percentage(30), // Info panel takes 30%
+            ])
+            .split(main_chunks[1]);
+            
+        render_simulation_canvas(f, app, body_chunks[0]);
+        render_detailed_info(f, app, body_chunks[1]);
+    } else {
+        // Just render the simulation canvas taking the full area
+        render_simulation_canvas(f, app, main_chunks[1]);
+    }
+
+    // Bottom control panel
+    render_control_panel(f, app, main_chunks[2]);
+}
+
+// Simulation canvas rendering (extracted from original ui function)
+fn render_simulation_canvas(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let focus_body = &app.solar_system.bodies[app.focus_body_index];
     let focus_x = focus_body.position.x;
     let focus_y = focus_body.position.y;
@@ -292,12 +335,12 @@ fn ui(f: &mut Frame, app: &App) {
     let canvas = Canvas::default()
         .block(Block::default().borders(Borders::ALL))
         .x_bounds([
-            focus_x - (chunks[1].width as f64 / 2.0) / app.scale,
-            focus_x + (chunks[1].width as f64 / 2.0) / app.scale,
+            focus_x - (area.width as f64 / 2.0) / app.scale,
+            focus_x + (area.width as f64 / 2.0) / app.scale,
         ])
         .y_bounds([
-            focus_y - (chunks[1].height as f64 / 2.0) / app.scale,
-            focus_y + (chunks[1].height as f64 / 2.0) / app.scale,
+            focus_y - (area.height as f64 / 2.0) / app.scale,
+            focus_y + (area.height as f64 / 2.0) / app.scale,
         ])
         .paint(|ctx| {
             // Draw orbital trails if enabled
@@ -366,9 +409,117 @@ fn ui(f: &mut Frame, app: &App) {
                 }
             }
         });
-    f.render_widget(canvas, chunks[1]);
+    f.render_widget(canvas, area);
+}
 
-    // Info panel at the bottom
+// Detailed information panel
+fn render_detailed_info(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
+    let focus_body = &app.solar_system.bodies[app.focus_body_index];
+    
+    // Format details for the current body with scientific notation for large numbers
+    let velocity_magnitude = (focus_body.velocity.x.powi(2) + focus_body.velocity.y.powi(2)).sqrt();
+    let distance_from_sun = if app.focus_body_index > 0 {
+        let sun = &app.solar_system.bodies[0];
+        let dx = focus_body.position.x - sun.position.x;
+        let dy = focus_body.position.y - sun.position.y;
+        (dx.powi(2) + dy.powi(2)).sqrt()
+    } else {
+        0.0 // Sun itself
+    };
+    
+    // Calculate instantaneous acceleration
+    let acceleration = if app.focus_body_index > 0 {
+        (focus_body.acceleration.x.powi(2) + focus_body.acceleration.y.powi(2)).sqrt()
+    } else {
+        0.0 // Sun doesn't accelerate much
+    };
+    
+    // Generate text lines
+    let mut lines = vec![
+        Line::from(Span::styled(
+            format!(" {} Details ", focus_body.name),
+            Style::default().fg(Color::Green)
+        )),
+        Line::from("―――――――――――――――――――――"),
+        Line::from(Span::styled(
+            format!("Mass: {:.2e} kg", focus_body.mass),
+            Style::default().fg(Color::White)
+        )),
+        Line::from(Span::styled(
+            format!("Position: ({:.2e}, {:.2e}) m", focus_body.position.x, focus_body.position.y),
+            Style::default().fg(Color::White)
+        )),
+        Line::from(Span::styled(
+            format!("Velocity: {:.2e} m/s", velocity_magnitude),
+            Style::default().fg(Color::White)
+        )),
+        Line::from(Span::styled(
+            format!("Direction: ({:.2}, {:.2})", 
+                focus_body.velocity.x / velocity_magnitude.max(1.0),
+                focus_body.velocity.y / velocity_magnitude.max(1.0)),
+            Style::default().fg(Color::White)
+        )),
+        Line::from(Span::styled(
+            format!("Acceleration: {:.2e} m/s²", acceleration),
+            Style::default().fg(Color::White)
+        )),
+    ];
+    
+    // Add distance from Sun for non-Sun bodies
+    if app.focus_body_index > 0 {
+        lines.push(Line::from(Span::styled(
+            format!("Distance from Sun: {:.2e} m", distance_from_sun),
+            Style::default().fg(Color::White)
+        )));
+        
+        // Add orbital period (approximate)
+        if velocity_magnitude > 0.0 {
+            let orbital_circumference = 2.0 * std::f64::consts::PI * distance_from_sun;
+            let orbital_period_seconds = orbital_circumference / velocity_magnitude;
+            let orbital_period_days = orbital_period_seconds / 86400.0;
+            
+            lines.push(Line::from(Span::styled(
+                format!("Orbital period: {:.2} days", orbital_period_days),
+                Style::default().fg(Color::White)
+            )));
+        }
+    }
+    
+    // Add gravity at surface (for planets)
+    if app.focus_body_index > 0 {
+        // Approximate radius based on mass
+        let radius = (focus_body.mass / 5.5e3).powf(1.0/3.0); // Very rough approximation
+        let surface_gravity = 6.67430e-11 * focus_body.mass / radius.powi(2);
+        
+        lines.push(Line::from(Span::styled(
+            format!("Surface gravity: {:.2} m/s²", surface_gravity),
+            Style::default().fg(Color::White)
+        )));
+        
+        // Add Earth relative values
+        let earth_gravity = 9.81;
+        lines.push(Line::from(Span::styled(
+            format!("Gravity vs Earth: {:.2}g", surface_gravity / earth_gravity),
+            Style::default().fg(Color::White)
+        )));
+    }
+    
+    // Add help text at bottom
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "Press 'i' to hide this panel",
+        Style::default().fg(Color::Gray)
+    )));
+    
+    let detailed_info = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("Celestial Body Information"))
+        .style(Style::default().fg(Color::White));
+        
+    f.render_widget(detailed_info, area);
+}
+
+// Bottom control panel 
+fn render_control_panel(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let focus_body = &app.solar_system.bodies[app.focus_body_index];
     let velocity_magnitude = (focus_body.velocity.x.powi(2) + focus_body.velocity.y.powi(2)).sqrt();
     
@@ -401,19 +552,20 @@ fn ui(f: &mut Frame, app: &App) {
             Style::default().fg(status_color)
         ),
         Span::styled(
-            format!("Trails: {} | Vectors: {} | ", 
+            format!("Trails: {} | Vectors: {} | Info: {} | ", 
                 if app.show_trails { "ON" } else { "OFF" },
-                if app.show_velocity { "ON" } else { "OFF" }
+                if app.show_velocity { "ON" } else { "OFF" },
+                if app.show_detailed_info { "ON" } else { "OFF" }
             ),
             Style::default().fg(Color::Yellow)
         ),
-        Span::styled("[1-6]speed [q]uit [space]pause [t]rails [v]ectors [+/-]zoom [←/→]focus [r]eset [c]lear", Style::default().fg(Color::Cyan)),
+        Span::styled("[1-6]speed [q]uit [i]nfo [space]pause [t]rails [v]ectors [+/-]zoom [←/→]focus", Style::default().fg(Color::Cyan)),
     ]);
 
     let info_panel = Paragraph::new(info)
         .block(Block::default().borders(Borders::ALL))
         .style(Style::default().fg(Color::White));
-    f.render_widget(info_panel, chunks[2]);
+    f.render_widget(info_panel, area);
 }
 
 fn get_body_color(index: usize) -> Color {

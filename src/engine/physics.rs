@@ -8,7 +8,7 @@ pub fn simulate(bodies: &mut Vec<CelestialObject>, dt: f64, num_steps: usize, _t
         
         // Calculate forces directly - this is O(n²) but more reliable
         let mut forces = Vec::with_capacity(body_count);
-        
+
         // Store current positions to avoid borrowing issues
         let positions: Vec<(String, Point2<f64>, f64)> = bodies
             .iter()
