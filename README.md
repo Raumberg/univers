@@ -1,110 +1,85 @@
-# Univers
-=====================================================  
+# Univers 🚀
 
-Unive.rs is a CLI tool to become a god and simulate your own star system. Built entirely in Rust, empowered by ratatui interface and GPU-accelerated linear algebra computations.
+**Unive.rs** — the ultimate terminal-based sandbox for simulating, breaking, and bending the laws of the universe.  
+Built in Rust. Powered by [ratatui](https://github.com/ratatui-org/ratatui).
 
-### Preview:
+---
+
 ![preview](assets/pocket_solar_system.jpeg)
 
-## Features
+## ✨ Features
 
-- 🌌 **Interactive Solar System Simulation**: Experience our solar system with accurate physics
-- 🪐 **Realistic Orbital Mechanics**: Based on Newton's Law of Universal Gravitation
-- ⏱️ **Time Control**: Speed up time to watch planetary motion over years in seconds
-- 🎮 **Interactive Controls**: Navigate between planets, zoom in/out, toggle visual elements
+- **🌌 Interactive Solar System** — Realistic orbits, all major planets, and the Sun, rendered with emoji for maximum cosmic vibes.
+- **🧲 Dynamic Gravity** — Change the gravitational constant on the fly. Make the universe collapse or float apart!
+- **💥 Collisions & Particle Explosions** — Planets can smash into each other, exploding into clouds of particles that obey gravity.
+- **🪐 Barnes-Hut Physics** — O(N log N) simulation for massive systems. Switch between brute-force and Barnes-Hut at runtime.
+- **🎮 Full Terminal UI** — Zoom, pan, focus, toggle trails, see velocity vectors, and get detailed info on any body.
+- **⚡ Real-Time & Time Warp** — Simulate from real seconds to cosmic years in a blink.
+- **👾 Emoji Planets** — Every planet and the Sun has its own emoji. Particles are tiny dots.
 
-## Terminal Interface
+---
 
-The simulation runs in your terminal using [ratatui](https://github.com/ratatui-org/ratatui), providing a rich interactive experience:
+## 🕹️ Controls
 
-- View the orbits of all planets in our solar system
-- Watch gravitational interactions between celestial bodies
-- Focus on specific planets with detailed information panels
-- Control the simulation speed from real-time to cosmic scale
+| Key         | Action                                      |
+|-------------|---------------------------------------------|
+| Space       | Pause/Resume simulation                     |
+| 1-6         | Set simulation speed (1=slow, 6=cosmic)     |
+| +/-         | Zoom in/out                                 |
+| ←/→         | Change focus to prev/next body              |
+| i           | Toggle detailed info panel                  |
+| t           | Toggle orbit trails                         |
+| v           | Toggle velocity vectors                     |
+| r           | Reset simulation                            |
+| c           | Clear trails                                |
+| b           | Switch physics engine (Direct/Barnes-Hut)   |
+| [ / ]       | Decrease/Increase gravity (G)               |
+| q           | Quit                                        |
 
-## Controls
+---
 
-| Key | Action |
-|-----|--------|
-| Space | Pause/Resume simulation |
-| 1-6 | Set simulation speed (1=slow, 6=cosmic) |
-| +/- | Zoom in/out |
-| Left/Right | Change focus to prev/next celestial body |
-| i | Toggle detailed information panel |
-| t | Toggle orbit trails |
-| v | Toggle velocity vectors |
-| r | Reset simulation |
-| c | Clear trails |
-| q | Quit |
+## 🧑‍🔬 Physics Engine
 
-## Gravity Engine
-Gravity can be simulated in two ways: 
-- **Newton's Law of Universal Gravitation**
-- **Simplified Einstein's General Relativity.**
-  
-All mathematical approaches are stated in ./Mathematics.md.  
-There are also several sidesteps for reducing computation complexity which are also stated there
+- **Newtonian Gravity** (Direct N², for small systems)
+- **Barnes-Hut Algorithm** (O(N log N), for big chaos)
+- **Realistic Collisions** — Planets have physical radii, collisions are based on actual sizes, not just positions.
+- **Particle Explosions** — When planets collide, they explode into dozens of particles, each with its own trajectory and lifetime.
 
-### Status:
-* **Ongoing** 🌊
-* **Master Branch:** build successful 🚀
+All math and physics are explained in [Mathematics.md](./Mathematics.md).
 
-### Plans:
-* 🤯 -> **Dynamic Gravity:** Manipulating gravity based on the CPU usage. If your CPU usage is high, the system will collapse and re-rendered again 💥
-* 💥 -> **Collisions**
-* 🕳️ -> **Black Holes**
+---
 
-### TODO List:
-- [x] Implement codebase for celestial bodies and system
-- [x] Implement a base physics engine
-- [x] Implement a ratatui interactable interface
-- [ ] Enhance physics with Simplified GR
-- [ ] Implement collisions
-- [ ] ... and many more!
+## 🚀 Quick Start
 
-## Build and Run
-*Want to build and run Univers yourself? Here's how:*
 ```bash
-git clone https://github.com/yourusername/univers.git
+git clone https://github.com/Raumberg/univers.git
 cd univers
-cargo build --release && cargo run --release
+cargo run --release
 ```
 
-## Future planning interface:
+---
 
-```
-                                 SOLAR SYSTEM SIMULATION                                  
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                                                              Mars                    │
-│                                                              *                       │
-│                              Earth                                                   │
-│                               *                                                      │
-│                                                                                      │
-│                                                                      Jupiter         │
-│                                                                       *              │
-│                                                                                      │
-│          Mercury                                                                     │
-│            *                                                                         │
-│                                                                                      │
-│                                                                                      │
-│                        Sun                                                           │
-│                         *                                                            │
-│                                                                                      │
-│                                                                           Saturn     │
-│                                                                            *         │
-│                   Venus                                                              │
-│                    *                                                                 │
-│                                                                                      │
-│                                                                                      │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-┌─Information────────────────────────┐ ┌─Control────────────────────────────────────┐
-│ Time Elapsed: 120.5 days           │ │ Space: Pause/Resume                        │
-│ Focus: Earth                       │ │ 1-6: Set speed                             │
-│ Position: (1.50e+11, 0.00e+00) m   │ │ +/-: Zoom in/out                          │
-│ Velocity: (0.00e+00, 2.97e+04) m/s │ │ ←/→: Change focus                          │
-└────────────────────────────────────┘ └────────────────────────────────────────────┘
-```
+## 🛠️ Roadmap
 
-## Current interface:
+- [x] Stable orbits for all planets
+- [x] Realistic collisions and particle explosions
+- [x] Barnes-Hut physics engine
+- [x] Emoji rendering for all bodies
+- [x] Dynamic gravity control
+- [ ] Black holes and accretion disks
+- [ ] Simplified General Relativity
+- [ ] Save/load custom universes
+- [ ] Mouse controls (drag & drop planets)
+- [ ] More chaos!
 
-Feel free to contribute and build the universe with me! My contacts are in my profile.
+---
+
+## 📚 More
+
+- For questions, ideas, or collabs — see my profile.
+- PRs, issues, and cosmic ideas are welcome!  
+  Feel free to fork, hack, and make the universe even weirder.
+
+---
+
+**Unive.rs — because the universe is too boring if you can't break it.**

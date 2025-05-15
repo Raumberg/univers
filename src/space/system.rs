@@ -7,6 +7,12 @@ pub struct Star;
 pub struct Planet;
 pub struct Moon;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SimulationAlgorithm {
+    Direct,
+    BarnesHut,
+}
+
 /// A trait for systems that can be simulated.
 pub trait Simulatable {
     /// A function to get the bodies of the system
@@ -70,6 +76,7 @@ pub trait Simulatable {
 pub struct StarSystem {
     pub bodies: Vec<CelestialObject>,
     pub g: f64, // gravitational constant in m^3 kg^-1 s^-2
+    pub algorithm: SimulationAlgorithm,
 }
 
 impl Clone for StarSystem {
@@ -77,6 +84,7 @@ impl Clone for StarSystem {
         StarSystem {
             bodies: self.bodies.clone(),
             g: self.g,
+            algorithm: self.algorithm,
         }
     }
 }
@@ -86,6 +94,7 @@ impl StarSystem {
         StarSystem {
             bodies: Vec::new(),
             g: 6.67430e-11, 
+            algorithm: SimulationAlgorithm::Direct,
         }
     }
     
@@ -170,7 +179,12 @@ impl StarSystem {
         StarSystem {
             bodies: vec![sun, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune],
             g: 6.67430e-11, 
+            algorithm: SimulationAlgorithm::Direct,
         }
+    }
+
+    pub fn set_algorithm(&mut self, algo: SimulationAlgorithm) {
+        self.algorithm = algo;
     }
 }
 
@@ -180,6 +194,9 @@ impl Simulatable for StarSystem {
     }
 
     fn simulate(&mut self, dt: f64, num_steps: usize) {
-        physics::simulate(&mut self.bodies, dt, num_steps, 0.5);
+        match self.algorithm {
+            SimulationAlgorithm::Direct => physics::simulate(&mut self.bodies, dt, num_steps, self.g),
+            SimulationAlgorithm::BarnesHut => physics::simulate_barnes_hut(&mut self.bodies, dt, num_steps, 0.5, self.g),
+        }
     }
 }

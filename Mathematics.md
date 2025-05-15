@@ -1,109 +1,127 @@
-# Mathematical statement of the following codebase
+# 🚀 The Mathematics of Univers: Physics for the Reckless
 
+> "If you can't break the universe, what's the point of simulating it?"
 
-## Newton's Law of Universal Gravitation
+---
 
-**The gravitational force between two objects is given by the following equation:**
+## 🌌 Newton's Law of Universal Gravitation (a.k.a. Why Shit Falls)
+
 ```
-F = G * (m1 * m2) / r^2
+      m1      m2
+      |        |
+      *--------*
+         r
+
+    F = G * (m1 * m2) / r^2
 ```
-where:
+- **F**: Gravitational force (the cosmic glue)
+- **G**: Gravitational constant (tweak it in the sim, break everything)
+- **m1, m2**: Masses of the bodies (Sun, planet, particle, whatever)
+- **r**: Distance between centers (not edges, you cheater)
+
+**In Univers, you can crank G up or down. Want a black hole? Go nuts. Want planets to drift like lost socks? Lower G.**
+
+---
+
+## 🏃‍♂️ Equations of Motion (How Planets Actually Move)
+
+We update every body's position and velocity every tick:
+
 ```
-F is the gravitational force between the two objects
-G is the gravitational constant (6.67430e-11 N*m^2/kg^2)
-m1 and m2 are the masses of the two objects
-r is the distance between the centers of the two objects
-This equation is a fundamental principle in astrophysics and is used to calculate the gravitational force between celestial bodies in our solar system. However, when dealing with a large number of bodies, the computational complexity of calculating the forces between all pairs of bodies becomes a significant challenge.
+    a = F / m
+    v(t+dt) = v(t) + a * dt
+    x(t+dt) = x(t) + v(t+dt) * dt
 ```
-### Equations of Motion
+- **a**: Acceleration (from all those F's)
+- **v**: Velocity
+- **x**: Position
+- **dt**: Time step (set by sim speed)
 
-**To simulate the motion of celestial bodies, we need to update their positions and velocities using the following equations:**
+**Pro tip:** If you make dt too big, planets will yeet themselves into the void. That's not a bug, that's physics (sort of).
+
+---
+
+## 🧮 Integration: Euler/Verlet (a.k.a. Good Enough™)
+
+We use a simple Euler/Verlet method. Why? Because it's fast, and you want chaos, not a PhD.
+
+- Calculate all forces
+- Update velocities
+- Update positions
+- Repeat until the heat death of your terminal
+
+**Want more accuracy?**
+- Use a smaller dt
+- Or implement Runge-Kutta yourself (but why?)
+
+---
+
+## 💥 Collisions & Explosions (Because Space is Violent)
+
+Planets have radii (calculated from mass & density). If two overlap:
+- They explode into a cloud of particles
+- Particles are real bodies: they feel gravity, they die after a while
+- Yes, you can make Saturn go supernova. Try it.
+
+---
+
+## 🪐 Barnes-Hut Algorithm (a.k.a. Fast N-Body for Lazy Bastards)
+
+Simulating every pair is O(N²). That's slow as hell. Barnes-Hut is O(N log N):
+
 ```
-Acceleration: a = F / m
-Velocity: v(t + Δt) = v(t) + a * Δt
-Position: x(t + Δt) = x(t) + v(t + Δt) * Δt
+   +---+---+
+   |   |   |
+   +---+---+
+   |   |   |
+   +---+---+
 ```
-where:
-```
-a is the acceleration of the celestial body
-F is the net force acting on the celestial body (i.e., the sum of all gravitational forces from other bodies)
-m is the mass of the celestial body
-v is the velocity of the celestial body
-x is the position of the celestial body
-Δt is the time step (i.e., the interval between updates)
-These equations are based on the fundamental principles of classical mechanics and are widely used in astrophysical simulations.
-```
-### Verlet/Euler Method
+- Divide space into cells
+- Approximate distant cells as one big mass
+- Only do full calc for close neighbors
+- Result: 10,000 bodies? No problem. (Well, almost)
 
-**The Verlet/Euler method is a numerical integration technique used to solve the equations of motion.**  
-It is a simple and efficient method that is widely used in astrophysical simulations. The method involves the following steps:
+**Switch between direct and Barnes-Hut in real time. See what breaks.**
 
-- Initialize the positions and velocities of the celestial bodies.
-- Calculate the accelerations of the celestial bodies using the gravitational forces.
-- Update the velocities of the celestial bodies using the accelerations.
-- Update the positions of the celestial bodies using the velocities.
-- The Verlet/Euler method is a first-order method, which means that it has a linear accuracy in time. However, it is a simple and efficient method that is widely used in astrophysical simulations.
+---
 
-## Simplifying Einstein's General Relativity
+## 🕹️ Hacking the Physics (a.k.a. Make It Weird)
 
-**Simplifying General Relativity (GR) for a 2D terminal universe simulation is a challenging task. However, we can make several simplifications and assumptions to reduce the complexity of the problem. These simplifications and assumptions include:**
+- **Crank G up**: Everything collapses. Black hole party.
+- **Crank G down**: Planets drift apart. Solar system becomes a disco.
+- **Add a massive body**: Watch orbits go nuts.
+- **Spam particles**: Lag your terminal, crash your OS, blame Rust.
+- **Set dt to 9000**: Instant entropy.
 
-- 2D spacetime: We reduce the 4-dimensional spacetime to a 2-dimensional space, ignoring the time dimension.
-- Flat spacetime: We assume the spacetime is flat, which means we can ignore the curvature of spacetime.
-- Weak gravitational field: We assume the gravitational field is weak, which allows us to use a linear approximation.
-- Point masses: We represent celestial bodies as point masses, ignoring their spatial extent.
-- Using these simplifications and assumptions, we can derive the simplified GR equations. In 2D, these equations can be written as:
-```
-∇²φ = 4πGρ
-```
-where:
-```
-φ is the gravitational potential
-G is the gravitational constant
-ρ is the mass density
-∇² is the 2D Laplace operator
-We can use the Newtonian gravitational potential as an approximation:  
+---
 
-φ(r) = -G * m / r
-```
-where:
-```
-m is the mass of the celestial body
-r is the distance from the body
-We can also use the Newtonian gravitational force as an approximation:  
+## ⚠️ How to Break the Simulation
 
-F(r) = -G * m1 * m2 / r²
-```
-where:
-```
-m1 and m2 are the masses of the two celestial bodies
-r is the distance between them
-```
-### Barnes-Hut Algorithm
+- Set G to something stupid (like 1e10). Enjoy the fireworks.
+- Add two Suns. See who wins.
+- Make all planets the same mass. Chaos.
+- Set dt to 0.00001. Watch nothing happen. Set dt to 1. Watch everything die.
+- Try to simulate Pluto. It will still get kicked out.
 
-**The Barnes-Hut algorithm is a hierarchical algorithm used to calculate the forces between celestial bodies.**  
-The algorithm reduces the computational complexity of calculating forces between all pairs of bodies from **O(n^2) to O(n log n).** The algorithm involves the following steps:
+---
 
-- Divide the space into a hierarchical grid of cells.
-- Calculate the center of mass and total mass of each cell.
-- Calculate the gravitational force between each pair of cells.
-- Use the gravitational force to update the positions and velocities of the celestial bodies.  
-The Barnes-Hut algorithm is a widely used algorithm in astrophysical simulations. It is an efficient and accurate method for calculating the forces between celestial bodies.
+## 🧑‍🔬 FAQ
 
-# Simulation
+**Q: Why not use Runge-Kutta or symplectic integrators?**
+A: Because you want to see planets explode, not write a thesis.
 
-**To simulate the motion of celestial bodies, we can use the following steps:**
+**Q: Why 2D?**
+A: Because 3D in a terminal is for masochists.
 
-- **Initialize the system:** Set up the initial positions, velocities, and masses of the celestial bodies in 2D universe.  
-- **Calculate the gravitational potential:** For each body, calculate the gravitational potential φ at each point in the 2D space using the Newtonian potential formula.
-- **Calculate the gravitational force:** For each pair of bodies, calculate the gravitational force F between them using the Newtonian force formula.
-- **Update the positions and velocities:** Update the positions and velocities of each body using the calculated forces and the equations of motion.  
-*Repeat steps 2-4: Continue iterating the simulation until the desired time step is reached. ^_^*
+**Q: Can I add black holes?**
+A: Not yet. But you can fake it by cranking G and adding a massive body.
 
-## Accuracy and Approximations
+---
 
-The accuracy of the simulation depends on several factors, including the accuracy of the gravitational potential and force calculations, the time step Δt, and the numerical integration method used. To improve the accuracy of the simulation, we can use more sophisticated numerical methods, such as the Runge-Kutta method, or more accurate approximations of the gravitational potential and force.  
+## 🤘 Final Words
 
-*theta* - Accuracy of Force Calculations  
+This isn't a physics textbook. This is a playground. Break stuff. Make new laws. If you want more math, PRs welcome. If you want more chaos, just ask.
 
-The accuracy of the force calculations can be controlled by the parameter θ, which determines the accuracy of the Barnes-Hut algorithm. A smaller value of θ results in a more accurate calculation of the forces, but at the cost of increased computational time.
+---
+
+*Univers: Because the universe is too boring if you can't break it.*

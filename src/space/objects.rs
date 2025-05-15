@@ -20,6 +20,19 @@ pub trait Sim {
     // fn simulate(&mut self)
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CelestialType {
+    Planet,
+    Star,
+    Particle,
+}
+
+impl Default for CelestialType {
+    fn default() -> Self {
+        CelestialType::Planet
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct CelestialObject {
     pub name: String,
@@ -28,6 +41,8 @@ pub struct CelestialObject {
     pub velocity: Velocity, // x, y components
     pub acceleration: Acceleration,
     pub prevposition: Position,
+    pub kind: CelestialType,
+    pub lifetime: Option<u32>, // Только для частиц
 }
 
 impl CelestialObject {
@@ -46,6 +61,25 @@ impl CelestialObject {
             velocity,
             acceleration,
             prevposition,
+            kind: CelestialType::Planet,
+            lifetime: None,
+        }
+    }
+    pub fn new_particle(
+        position: Position,
+        velocity: Velocity,
+        mass: Mass,
+        lifetime: u32,
+    ) -> Self {
+        CelestialObject {
+            name: "Particle".to_string(),
+            mass,
+            position,
+            velocity,
+            acceleration: Velocity::new(0.0, 0.0),
+            prevposition: position,
+            kind: CelestialType::Particle,
+            lifetime: Some(lifetime),
         }
     }
     pub fn get_distance(&self, other: &Position) -> Distance {
@@ -60,6 +94,17 @@ impl CelestialObject {
         let f = (G * self.mass * other.mass) / dist.norm_squared();
         f * dist.normalize()
     }
+
+    pub fn radius(&self) -> f64 {
+        match self.kind {
+            CelestialType::Planet | CelestialType::Star => {
+                // r = (3M / 4πρ)^(1/3), ρ ~ 5500 кг/м³
+                let density = 5500.0;
+                ((3.0 * self.mass) / (4.0 * std::f64::consts::PI * density)).cbrt()
+            }
+            CelestialType::Particle => 1e8, // частицы — маленькие
+        }
+    }
 }
 
 impl PartialEq for CelestialObject {
@@ -68,5 +113,6 @@ impl PartialEq for CelestialObject {
         && self.mass == other.mass
         && self.position == other.position
         && self.velocity == other.velocity
+        && self.kind == other.kind
     }
 }
